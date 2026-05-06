@@ -1,79 +1,121 @@
 # AI Image Layer Extractor
 
-AI Image Layer Extractor 是一个本地桌面 MVP，用来把 AI image2image / text2image 生成的扁平 PNG、JPG、WEBP 图片，按用户框选区域抠成带透明通道的独立 PNG 图层，并记录每个图层在原图中的坐标信息。
+AI Image Layer Extractor is a local desktop MVP for extracting editable
+transparent PNG layers from flat AI-generated PNG/JPG/WEBP images.
 
-第一版重点保证最小可运行：PySide6 桌面 UI、OpenCV GrabCut + 手动框选 mask、Pillow 导出透明 PNG、JSON 项目元数据。SAM2、rembg、OCR、PSD 和 UE 导入接口已预留。
+The current MVP uses:
 
-## 安装
+- PySide6 for the desktop UI
+- OpenCV GrabCut for rectangle-prompted mask generation
+- Pillow for image IO and transparent PNG export
+- numpy for mask and array processing
 
-需要 Python 3.10+。
+The source workflow and the Windows installer workflow are both supported.
+
+## Installer Usage
+
+Download or build:
+
+```text
+release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
+```
+
+Then:
+
+1. Double-click `AIImageLayerExtractor_Setup_0.1.0_x64.exe`.
+2. Keep the desktop shortcut option checked if desired.
+3. Launch from the desktop shortcut or Start Menu shortcut.
+
+The installer uses a per-user install directory:
+
+```text
+%LOCALAPPDATA%/Programs/AI Image Layer Extractor
+```
+
+The installed application stores user data outside the install directory:
+
+```text
+%LOCALAPPDATA%/AIImageLayerExtractor/
++-- logs/
++-- config/
++-- cache/
++-- exports/
+```
+
+Uninstalling the application removes only the program files. It does not delete
+the user data directory.
+
+## Development Run
+
+Python 3.10+ is required.
 
 ```powershell
 cd C:\ML\EditImage\ai_image_layer_extractor
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-如果本机 PowerShell 禁止执行激活脚本，也可以直接使用：
-
-```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe main.py
 ```
 
-## 运行
+If PowerShell execution policy blocks activation scripts, run the `.venv`
+Python directly as shown above.
+
+For tests and packaging tools:
 
 ```powershell
-cd C:\ML\EditImage\ai_image_layer_extractor
-python main.py
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -B -m pytest
 ```
 
-如果在 Windows 上遇到类似下面的错误：
+## Windows PySide6 DLL Note
+
+This project pins:
 
 ```text
-ImportError: DLL load failed while importing QtWidgets: 找不到指定的程序。
+PySide6==6.7.3
 ```
 
-通常是 PySide6/Qt 的 DLL 依赖版本不兼容。当前项目已验证 `PySide6==6.7.3` 可正常导入。请在虚拟环境中执行：
+On this machine, `PySide6==6.11.0` failed with a Qt DLL load error. If you see:
+
+```text
+ImportError: DLL load failed while importing QtWidgets
+```
+
+reinstall the pinned version:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install --force-reinstall PySide6==6.7.3
-.\.venv\Scripts\python.exe -c "from PySide6.QtWidgets import QApplication; print('QtWidgets OK')"
 ```
 
-如果 PowerShell 当前处于 Anaconda `(base)` 环境，仍然可以直接使用 `.venv\Scripts\python.exe` 运行项目；不要混用全局 `python main.py`，以免使用到错误的解释器或包。
+## Basic Workflow
 
-## 使用流程
+1. Click `Open Image` to load a PNG, JPG, JPEG, or WEBP image.
+2. Drag on the canvas with the left mouse button to select an element.
+3. Release the mouse button to generate a semi-transparent mask preview.
+4. Click `Create Layer` to save the current mask as a layer.
+5. Rename, show/hide, delete, or export layers from the right-side panel.
+6. Click `Export All` to write layers, masks, `project.json`, and `preview.png`.
 
-1. 点击 `Open Image` 导入 PNG / JPG / WEBP 图片。
-2. 在画布中用鼠标左键拖拽框选元素区域。
-3. 松开鼠标后，程序会生成半透明 mask 预览。
-4. 点击 `Create Layer`，当前 mask 会保存为一个图层。
-5. 在右侧 `Layers` 面板中重命名、显示/隐藏、删除或单独导出图层。
-6. 点击 `Export All` 导出所有图层、mask、`project.json` 和 `preview.png`。
+Canvas controls:
 
-画布操作：
+- Mouse wheel: zoom
+- Right or middle mouse drag: pan
+- `Fit View`: fit the image to the viewport
 
-- 鼠标滚轮缩放。
-- 鼠标右键或中键拖动画布平移。
-- `Fit View` 将图片适配回窗口。
-
-## 导出结构
+## Export Structure
 
 ```text
 Export/
-├── layers/
-│   ├── 001_layer_name.png
-│   └── ...
-├── masks/
-│   ├── 001_layer_name_mask.png
-│   └── ...
-├── project.json
-└── preview.png
++-- layers/
+|   +-- 001_layer_name.png
+|   +-- ...
++-- masks/
+|   +-- 001_layer_name_mask.png
+|   +-- ...
++-- project.json
++-- preview.png
 ```
 
-`project.json` 示例：
+Example `project.json`:
 
 ```json
 {
@@ -100,60 +142,52 @@ Export/
 }
 ```
 
-图层 PNG 和 mask PNG 都按 bbox 裁剪；`x`、`y`、`width`、`height` 用于还原到原始画布坐标。
+Layer PNGs and mask PNGs are cropped to bbox. The JSON coordinates restore each
+layer to its original source-canvas position.
 
-## 项目结构
+## Packaging
+
+See:
+
+```text
+packaging/README_PACKAGING.md
+```
+
+One-command build:
+
+```powershell
+.\packaging\scripts\build_all.ps1
+```
+
+Outputs:
+
+```text
+dist/AIImageLayerExtractor/
+release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
+```
+
+## Project Structure
 
 ```text
 ai_image_layer_extractor/
-├── main.py
-├── requirements.txt
-├── README.md
-├── app/
-│   ├── main_window.py
-│   ├── canvas_widget.py
-│   ├── layer_panel.py
-│   └── export_dialog.py
-├── core/
-│   ├── project.py
-│   ├── layer.py
-│   ├── mask_utils.py
-│   ├── image_utils.py
-│   └── exporter.py
-├── segmenters/
-│   ├── base_segmenter.py
-│   ├── opencv_segmenter.py
-│   ├── rembg_segmenter.py
-│   └── sam2_segmenter.py
-└── tests/
-    ├── test_mask_utils.py
-    └── test_exporter.py
++-- main.py
++-- launcher.py
++-- version.py
++-- requirements.txt
++-- requirements-dev.txt
++-- README.md
++-- app/
++-- core/
++-- segmenters/
++-- tests/
++-- packaging/
 ```
 
-## 测试
+## Future Extensions
 
-```powershell
-cd C:\ML\EditImage\ai_image_layer_extractor
-pytest
-```
-
-## 当前 MVP 能力
-
-- 导入 PNG / JPG / WEBP。
-- 中央画布显示图片。
-- 支持缩放、平移、鼠标框选。
-- 框选后用 OpenCV GrabCut 生成初步 mask，并进行连通域清理、轻微膨胀和羽化。
-- 手动确认创建图层。
-- 根据 mask 生成带透明通道的 PNG。
-- 自动计算 bbox。
-- 右侧图层列表支持重命名、显示/隐藏、删除、单独导出。
-- 一键导出全部图层、mask、项目 JSON 和预览图。
-
-## 后续扩展方向
-
-1. 接入 SAM2 点选/框选分割，在 `segmenters/sam2_segmenter.py` 中实现模型加载、prompt 输入和多 mask 选择。
-2. 接入 rembg 背景移除，在 `segmenters/rembg_segmenter.py` 中实现前景 alpha 输出。
-3. 接入 OCR 识别文字图层，并把文字内容、字体候选、bbox 写入 `project.json`。
-4. 导出 PSD，可新增 `core/psd_exporter.py`，把每个 LayerItem 转为 PSD layer。
-5. 导出 UE UMG 布局 JSON，复用 `x/y/width/height/opacity` 元数据。
-6. UE Python 自动导入 Texture2D，生成 Widget Blueprint 或 UMG 层级。
+1. SAM2 point/box segmentation.
+2. rembg background removal.
+3. OCR text layer detection.
+4. PSD export.
+5. Unreal Engine UMG layout JSON export.
+6. UE Python Texture2D import automation.

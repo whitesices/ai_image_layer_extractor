@@ -4,4 +4,7 @@ __pycache__/
 pytest-cache-files-*/
 .venv*/
 Export/
+build/
+dist/
+release/
 *.log

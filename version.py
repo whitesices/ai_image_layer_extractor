@@ -1,0 +1,5 @@
+APP_NAME = "AI Image Layer Extractor"
+APP_EXE_NAME = "AIImageLayerExtractor"
+APP_VERSION = "0.1.0"
+APP_PUBLISHER = "Personal Tools"
+APP_DESCRIPTION = "AI image layer extraction desktop tool"

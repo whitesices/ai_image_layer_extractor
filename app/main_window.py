@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -264,6 +265,9 @@ class MainWindow(QMainWindow):
         self.canvas.set_layers(self.project.layers, self.selected_layer_id)
 
     def _default_export_dir(self) -> Path:
+        packaged_export_dir = os.environ.get("AI_IMAGE_LAYER_EXTRACTOR_EXPORT_DIR")
+        if packaged_export_dir:
+            return Path(packaged_export_dir)
         if self.project.source_image_path is None:
             return Path.cwd() / "Export"
         return self.project.source_image_path.parent / "Export"

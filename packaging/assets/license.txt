@@ -1,0 +1,6 @@
+AI Image Layer Extractor
+
+Copyright (c) 2026 Personal Tools.
+
+This installer is provided for local desktop use. Third-party Python packages
+included in the packaged application keep their respective licenses.

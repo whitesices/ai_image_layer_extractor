@@ -102,6 +102,55 @@ QT_QPA_PLATFORM=offscreen MainWindow smoke test
 
 Result: tests passed and `MainWindow` instantiated successfully.
 
+## Packaging Notes
+
+On 2026-05-06, a Windows installer packaging pipeline was added without changing the original `main.py` source entry point.
+
+Added files:
+
+- `launcher.py`: PyInstaller/installer entry point, user data directory creation, crash logging, `--smoke-test`, resource path helpers.
+- `version.py`: app name, executable name, version, publisher, description.
+- `requirements-dev.txt`: development and packaging dependencies (`pytest`, `pyinstaller`).
+- `packaging/pyinstaller/AIImageLayerExtractor.spec`: PyInstaller onedir build configuration.
+- `packaging/inno/AIImageLayerExtractor.iss`: Inno Setup per-user installer script.
+- `packaging/assets/app_icon.ico`: generated placeholder icon.
+- `packaging/assets/license.txt`: placeholder license text.
+- `packaging/scripts/*.ps1`: clean, EXE build, installer build, full build scripts.
+- `packaging/README_PACKAGING.md`: packaging workflow and troubleshooting.
+
+Runtime dependency split:
+
+- `requirements.txt`: runtime only (`PySide6==6.7.3`, `Pillow`, `opencv-python`, `numpy`).
+- `requirements-dev.txt`: test/build tooling only.
+
+Installed/package behavior:
+
+- Packaged app uses `launcher.py`.
+- Source app can still use `python main.py`.
+- Installer target is per-user: `%LOCALAPPDATA%/Programs/AI Image Layer Extractor`.
+- Packaged user data is created under `%LOCALAPPDATA%/AIImageLayerExtractor` with `logs/`, `config/`, `cache/`, and `exports/`.
+- `MainWindow._default_export_dir()` uses `AI_IMAGE_LAYER_EXTRACTOR_EXPORT_DIR` only when launcher sets it; source mode stays unchanged.
+- Inno uninstall removes program files only; it does not delete user data.
+
+Build validation completed:
+
+```text
+packaging/scripts/build_all.ps1
+dist/AIImageLayerExtractor/AIImageLayerExtractor.exe
+release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
+```
+
+Additional smoke validation:
+
+- Source launcher smoke test passed with writable `LOCALAPPDATA` override.
+- PyInstaller EXE smoke test passed.
+- Installer built successfully with Inno Setup 6.7.1.
+- Silent installer unpack smoke test passed.
+- Installed EXE smoke test passed.
+- Silent uninstaller returned exit code 0.
+
+Environment note: this machine installed Inno Setup through `winget`, which placed `ISCC.exe` at `%LOCALAPPDATA%/Programs/Inno Setup 6/ISCC.exe`. `build_installer.ps1` checks this per-user path in addition to the common Program Files paths.
+
 ## Validation
 
 Known passing command:
