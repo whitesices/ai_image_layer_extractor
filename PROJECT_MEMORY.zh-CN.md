@@ -267,3 +267,22 @@ python -B -m pytest
 - `launcher.py --smoke-test` 在 `QT_QPA_PLATFORM=offscreen` 下通过。
 - `packaging/scripts/build_all.ps1` 已生成 `release/AIImageLayerExtractor_Setup_0.1.0_x64.exe`。
 - 安装器静默烟测通过：安装、已安装 EXE `--smoke-test`、静默卸载和用户数据保留均已验证。
+
+## 项目 Skill
+
+2026-05-06，已将当前项目的可复用经验整理为仓库内 Codex Skill：
+
+```text
+skills/ai-image-layer-extractor-pro/
+```
+
+该 Skill 包含：
+
+- `SKILL.md`：渐进式工程流程、架构边界、AI 指令规则、导出契约、mask 质量处理和 Windows 打包规则。
+- `references/`：架构、导出、AI 后端和 Windows 打包的聚焦参考。
+- `scripts/validate_project.ps1`：用于执行 compile、pytest 和 launcher smoke 验证。
+
+验证：
+
+- `quick_validate.py` 使用全局 Anaconda Python 环境通过。
+- `skills/ai-image-layer-extractor-pro/scripts/validate_project.ps1` 已通过 compileall、45 个 pytest 测试和 launcher smoke test。

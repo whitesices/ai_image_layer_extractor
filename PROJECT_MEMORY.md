@@ -267,3 +267,22 @@ Packaging validation:
 - `launcher.py --smoke-test` passed with `QT_QPA_PLATFORM=offscreen`.
 - `packaging/scripts/build_all.ps1` produced `release/AIImageLayerExtractor_Setup_0.1.0_x64.exe`.
 - Silent installer smoke test passed: install, installed EXE `--smoke-test`, silent uninstall, and user data preservation were verified.
+
+## Project Skill
+
+On 2026-05-06, reusable project knowledge was consolidated into a repo-local Codex skill:
+
+```text
+skills/ai-image-layer-extractor-pro/
+```
+
+The skill includes:
+
+- `SKILL.md` with incremental engineering workflow, architecture boundaries, AI command rules, export contracts, mask quality guidance, and Windows packaging rules.
+- `references/` with focused architecture, export, AI backend, and Windows packaging notes.
+- `scripts/validate_project.ps1` for compile, pytest, and launcher smoke validation.
+
+Validation:
+
+- `quick_validate.py` passed using the global Anaconda Python environment.
+- `skills/ai-image-layer-extractor-pro/scripts/validate_project.ps1` passed with compileall, 45 pytest tests, and launcher smoke test.

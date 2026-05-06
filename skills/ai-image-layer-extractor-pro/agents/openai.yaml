@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Image Layer Extractor Pro"
+  short_description: "Evolve Python desktop image-layer extraction tools safely."
+  default_prompt: "Use this skill to extend or debug AI Image Layer Extractor style projects while preserving export contracts, offline fallbacks, and Windows packaging."
