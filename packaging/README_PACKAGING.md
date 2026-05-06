@@ -20,6 +20,12 @@ cd C:\ML\EditImage\ai_image_layer_extractor
 .\packaging\scripts\build_all.ps1
 ```
 
+If PowerShell execution policy blocks local scripts, use:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\packaging\scripts\build_all.ps1
+```
+
 Output:
 
 ```text
@@ -76,6 +82,21 @@ The packaged launcher creates user data folders under:
 
 The installer removes only the application files. It intentionally does not
 delete `%LOCALAPPDATA%/AIImageLayerExtractor`.
+
+## LLM and Optional Dependencies
+
+The installer does not include an OpenAI API key and does not require `torch`,
+SAM2, rembg, or OCR packages. The default installed app remains usable offline
+with manual tools, batch export, and the mock LLM provider.
+
+OpenAI LLM parsing is optional. In source mode, install the SDK only if needed:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install openai
+```
+
+If the OpenAI SDK or API key is missing, the UI falls back to the mock provider
+instead of crashing.
 
 ## Common Problems
 

@@ -98,6 +98,106 @@ ImportError: DLL load failed while importing QtWidgets
 - 鼠标右键或中键拖拽：平移
 - `Fit View`：让图片适配视口
 
+## AI Command 自然语言编辑
+
+打开 `AI > AI Command Panel`，可以用自然语言描述编辑或导出任务。LLM 层只负责生成结构化的 `ImageEditPlan`，不会直接操作像素。真正执行计划的是本地、可测试的 Python 代码。
+
+按钮：
+
+- `Parse`：把文本解析成编辑计划。
+- `Dry Run`：预览将要执行的操作，不写入文件。
+- `Execute`：确认后执行计划。
+- `Clear`：清空输入和预览。
+
+如果没有配置外部 API Key，面板会自动使用离线 `MockLLMProvider`，它可以理解常见中文批量导出和重命名指令。
+
+示例指令：
+
+1. `把所有图层导出 512x512`
+2. `把当前选中图层导出 256、512、1024 三套尺寸`
+3. `把所有图层加 32 像素透明边距后导出`
+4. `把角色图层重命名为 player_character`
+5. `把 UI 图标全部导出为 128x128 透明 PNG`
+6. `导出适合 UE UMG 使用的 512 和 1024 两套资源`
+
+## Batch Export 批量导出
+
+打开 `Batch > Batch Export`，可以把全部图层或当前选中图层导出为 128x128、256x256、512x512、1024x1024 等生产尺寸。
+
+支持的 fit mode：
+
+- `contain`：保持比例，完整放入目标画布。
+- `cover`：保持比例，填满目标画布，必要时裁切。
+- `stretch`：强制拉伸到目标宽高。
+- `max_side`：让最长边匹配请求尺寸。
+- `original`：保持原始 bbox 尺寸。
+
+批量导出会写入 `batch_report.json`，并在 `Export/layers/` 下生成多尺寸目录。
+
+## LLM Provider 设置
+
+打开 `AI > Settings` 可以选择：
+
+- `Mock`：离线规则解析器，不需要 API Key。
+- `OpenAI`：可选外部解析器，用于把自然语言转换为 `ImageEditPlan` JSON。
+
+OpenAI 支持是可选的。源码模式下如需使用，请自行安装 SDK：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install openai
+```
+
+Windows 安装包不会包含任何 API Key。
+
+## API Key 安全说明
+
+API Key 不会硬编码，也不会被打进安装包。
+
+读取顺序：
+
+1. `OPENAI_API_KEY` 环境变量。
+2. 用户设置文件，且仅当用户明确选择保存时读取。
+
+设置文件路径：
+
+```text
+%LOCALAPPDATA%/AIImageLayerExtractor/config/settings.json
+```
+
+不要提交 `settings.json`。如果没有系统级密钥存储，建议优先使用 `OPENAI_API_KEY` 环境变量，或选择不保存 API Key。
+
+## 离线模式说明
+
+没有 API Key 时，软件仍然支持：
+
+- Open Image
+- 手动框选和 mask 预览
+- Create Layer
+- Export All
+- Batch Export
+- Mock AI 指令解析
+- Windows 安装版启动
+
+核心工作流不需要网络访问。
+
+## 云端图像编辑隐私说明
+
+当前版本默认不会上传图片进行云端编辑。`image_editors/openai_image_editor.py` 只是可选扩展接口。
+
+未来如加入云端图像编辑功能，应明确提示用户确认，因为源图片、mask 或选区可能会上传到 API 服务。
+
+## 质量处理说明
+
+批量导出使用本地质量处理管线：中间处理保持 RGBA，默认 PNG 无损写出，支持透明边距，并避免不必要的 JPEG 重复压缩。
+
+处理管线包括：
+
+- 保留 alpha 的高质量 resize
+- contain / cover / stretch / max_side / original fit mode
+- 可选边缘 refinement
+- 可选透明边缘 halo 清理
+- 导出质量报告
+
 ## 导出结构
 
 ```text

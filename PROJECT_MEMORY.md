@@ -151,6 +151,37 @@ Additional smoke validation:
 
 Environment note: this machine installed Inno Setup through `winget`, which placed `ISCC.exe` at `%LOCALAPPDATA%/Programs/Inno Setup 6/ISCC.exe`. `build_installer.ps1` checks this per-user path in addition to the common Program Files paths.
 
+## AI Command and Batch Export Notes
+
+On 2026-05-06, the app was extended with modular AI-command planning and production batch export features.
+
+Added modules:
+
+- `core/edit_plan.py`: structured `ImageEditPlan`, task, quality, batch size, and command context dataclasses.
+- `llm/`: provider interface, offline `MockLLMProvider`, optional `OpenAIProvider`, prompt template, schema validation, config helpers.
+- `core/quality_pipeline.py`: RGBA-safe resizing, transparent padding, alpha halo cleanup, mask edge refinement, and quality reports.
+- `core/batch_exporter.py`: multi-size layer export, original folder, masks, `batch_report.json`, preview, and project metadata.
+- `core/command_executor.py`: dry-run and execute support for `batch_export_layers`, `resize_layer`, and `rename_layer`.
+- `image_editors/`: local image editing helper and optional OpenAI image editor extension point.
+- `app/ai_command_panel.py`: dockable natural language command UI with Parse, Dry Run, Execute, and Clear.
+- `app/batch_export_panel.py`: dockable batch export UI with size presets, custom size, fit mode, padding, and output format.
+- `app/settings_dialog.py`: provider, optional API key, default export directory, and batch defaults.
+
+Design decisions:
+
+- LLM providers only produce structured plans; they never directly mutate pixels.
+- Missing OpenAI SDK or API key falls back to the mock provider and does not break manual workflows.
+- OpenAI API keys are read from `OPENAI_API_KEY` or user settings only; they are never bundled into the installer.
+- Batch export does not mutate original `LayerItem` geometry or masks.
+- SAM2, rembg, OCR, PSD, cloud image editing, and UE import remain optional future extensions.
+
+Validation after this feature pass:
+
+```text
+python -B -m pytest
+18 passed
+```
+
 ## Validation
 
 Known passing command:
@@ -163,7 +194,7 @@ python -B -m pytest
 Latest result:
 
 ```text
-5 passed in 0.13s
+18 passed in 0.25s
 ```
 
 `pytest.ini` restricts discovery to `tests/` and disables pytest cache because earlier environment attempts created inaccessible `pytest-cache-files-*` folders in the project root.

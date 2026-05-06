@@ -6,6 +6,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QDockWidget,
+    QDialog,
     QFileDialog,
     QMainWindow,
     QMessageBox,
@@ -14,9 +16,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ai_command_panel import AICommandPanel
+from app.batch_export_panel import BatchExportPanel
 from app.canvas_widget import CanvasWidget
 from app.export_dialog import ExportDialog
 from app.layer_panel import LayerPanel
+from app.settings_dialog import SettingsDialog
 from core.exporter import LayerExporter
 from core.image_utils import load_source_image
 from core.layer import MaskResult
@@ -50,6 +55,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         self._build_toolbar()
+        self._build_docks_and_menus()
         self._connect_signals()
         self._apply_style()
         self.statusBar().showMessage("Ready")
@@ -79,6 +85,45 @@ class MainWindow(QMainWindow):
         fit_action.triggered.connect(self.canvas.fit_to_view)
         toolbar.addAction(fit_action)
 
+    def _build_docks_and_menus(self) -> None:
+        self.ai_command_panel = AICommandPanel(
+            self.project,
+            self._selected_layer_ids,
+            self._default_export_dir,
+            self,
+        )
+        self.ai_dock = QDockWidget("AI Command", self)
+        self.ai_dock.setObjectName("AICommandDock")
+        self.ai_dock.setWidget(self.ai_command_panel)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.ai_dock)
+        self.ai_dock.hide()
+
+        self.batch_export_panel = BatchExportPanel(
+            self.project,
+            self._selected_layer_ids,
+            self._default_export_dir,
+            self,
+        )
+        self.batch_dock = QDockWidget("Batch Export", self)
+        self.batch_dock.setObjectName("BatchExportDock")
+        self.batch_dock.setWidget(self.batch_export_panel)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.batch_dock)
+        self.batch_dock.hide()
+
+        ai_menu = self.menuBar().addMenu("AI")
+        show_ai_action = QAction("AI Command Panel", self)
+        show_ai_action.triggered.connect(self._show_ai_command_panel)
+        ai_menu.addAction(show_ai_action)
+
+        settings_action = QAction("Settings", self)
+        settings_action.triggered.connect(self.open_settings)
+        ai_menu.addAction(settings_action)
+
+        batch_menu = self.menuBar().addMenu("Batch")
+        show_batch_action = QAction("Batch Export", self)
+        show_batch_action.triggered.connect(self._show_batch_export_panel)
+        batch_menu.addAction(show_batch_action)
+
     def _connect_signals(self) -> None:
         self.canvas.selectionChanged.connect(self._on_selection_changed)
         self.canvas.selectionCompleted.connect(self._on_selection_completed)
@@ -91,6 +136,8 @@ class MainWindow(QMainWindow):
         self.layer_panel.layerRenamed.connect(self.rename_layer)
         self.layer_panel.layerVisibilityChanged.connect(self.set_layer_visible)
         self.layer_panel.layerSelected.connect(self._select_layer)
+        self.ai_command_panel.executionFinished.connect(self._refresh_layers)
+        self.batch_export_panel.exportFinished.connect(self._refresh_layers)
 
     def open_image(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -195,6 +242,14 @@ class MainWindow(QMainWindow):
         self._refresh_layers()
         self.statusBar().showMessage(f"Exported layer {layer.id} to {output_dir}")
 
+    def open_settings(self) -> None:
+        dialog = SettingsDialog(self.ai_command_panel.settings, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self.ai_command_panel.set_settings(dialog.settings)
+        self.batch_export_panel.set_settings(dialog.settings)
+        self.statusBar().showMessage("Settings saved")
+
     def delete_layer(self, layer_id: str) -> None:
         removed = self.project.remove_layer(layer_id)
         if removed:
@@ -263,6 +318,19 @@ class MainWindow(QMainWindow):
     def _refresh_layers(self) -> None:
         self.layer_panel.set_layers(self.project.layers, self.selected_layer_id)
         self.canvas.set_layers(self.project.layers, self.selected_layer_id)
+        self.batch_export_panel.refresh_state()
+        self.ai_command_panel.refresh_status()
+
+    def _selected_layer_ids(self) -> list[str]:
+        return [self.selected_layer_id] if self.selected_layer_id else []
+
+    def _show_ai_command_panel(self) -> None:
+        self.ai_dock.show()
+        self.ai_dock.raise_()
+
+    def _show_batch_export_panel(self) -> None:
+        self.batch_dock.show()
+        self.batch_dock.raise_()
 
     def _default_export_dir(self) -> Path:
         packaged_export_dir = os.environ.get("AI_IMAGE_LAYER_EXTRACTOR_EXPORT_DIR")
@@ -330,6 +398,25 @@ class MainWindow(QMainWindow):
                 border: 1px solid #5f6368;
                 border-radius: 4px;
                 padding: 6px;
+            }
+            QTextEdit, QComboBox, QSpinBox {
+                background: #202124;
+                border: 1px solid #5f6368;
+                border-radius: 4px;
+                padding: 4px;
+                color: #f1f3f4;
+            }
+            QComboBox QAbstractItemView {
+                background: #202124;
+                color: #f1f3f4;
+                selection-background-color: #145a66;
+            }
+            QCheckBox, QRadioButton {
+                spacing: 6px;
+            }
+            QDockWidget {
+                titlebar-close-icon: none;
+                titlebar-normal-icon: none;
             }
             QLabel#PanelTitle {
                 font-size: 16px;

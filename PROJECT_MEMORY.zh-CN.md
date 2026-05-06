@@ -151,6 +151,37 @@ release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
 
 环境说明：当前机器通过 `winget` 安装 Inno Setup，`ISCC.exe` 位于 `%LOCALAPPDATA%/Programs/Inno Setup 6/ISCC.exe`。`build_installer.ps1` 除了常见 Program Files 路径外，也会检查这个当前用户路径。
 
+## AI Command 和批量导出记录
+
+2026-05-06，应用新增了模块化 AI 指令计划和生产向批量导出能力。
+
+新增模块：
+
+- `core/edit_plan.py`：结构化 `ImageEditPlan`、任务、质量选项、批量尺寸和命令上下文 dataclass。
+- `llm/`：Provider 接口、离线 `MockLLMProvider`、可选 `OpenAIProvider`、prompt template、schema 校验和配置辅助函数。
+- `core/quality_pipeline.py`：RGBA 安全 resize、透明 padding、alpha halo 清理、mask 边缘 refinement 和质量报告。
+- `core/batch_exporter.py`：多尺寸图层导出、original 目录、masks、`batch_report.json`、preview 和 project metadata。
+- `core/command_executor.py`：为 `batch_export_layers`、`resize_layer` 和 `rename_layer` 提供 dry-run 与执行能力。
+- `image_editors/`：本地图像编辑辅助能力和可选 OpenAI 图像编辑扩展点。
+- `app/ai_command_panel.py`：可停靠的自然语言指令 UI，包含 Parse、Dry Run、Execute 和 Clear。
+- `app/batch_export_panel.py`：可停靠的批量导出 UI，包含尺寸预设、自定义尺寸、fit mode、padding 和输出格式。
+- `app/settings_dialog.py`：Provider、可选 API Key、默认导出目录和批量默认值设置。
+
+设计决策：
+
+- LLM Provider 只生成结构化计划，绝不直接修改像素。
+- 缺少 OpenAI SDK 或 API Key 时回退到 Mock Provider，不破坏手动工作流。
+- OpenAI API Key 只从 `OPENAI_API_KEY` 或用户设置读取，绝不会被打进安装包。
+- 批量导出不会修改原始 `LayerItem` 几何信息或 mask。
+- SAM2、rembg、OCR、PSD、云端图像编辑和 UE 导入仍保持为未来可选扩展。
+
+该功能阶段后的验证：
+
+```text
+python -B -m pytest
+18 passed
+```
+
 ## 验证
 
 已知通过的命令：
@@ -163,7 +194,7 @@ python -B -m pytest
 最新结果：
 
 ```text
-5 passed in 0.13s
+18 passed in 0.25s
 ```
 
 `pytest.ini` 将测试发现范围限制在 `tests/`，并禁用 pytest cache，因为早先的环境尝试在项目根目录创建了无法访问的 `pytest-cache-files-*` 文件夹。

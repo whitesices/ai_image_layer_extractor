@@ -19,6 +19,12 @@ cd C:\ML\EditImage\ai_image_layer_extractor
 .\packaging\scripts\build_all.ps1
 ```
 
+如果 PowerShell 执行策略阻止本地脚本，请使用：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\packaging\scripts\build_all.ps1
+```
+
 输出：
 
 ```text
@@ -72,6 +78,18 @@ release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
 ```
 
 安装程序只会卸载应用文件。它会有意保留 `%LOCALAPPDATA%/AIImageLayerExtractor`。
+
+## LLM 和可选依赖
+
+安装包不会包含 OpenAI API Key，也不会强制安装 `torch`、SAM2、rembg 或 OCR 包。默认安装版可以在离线状态下继续使用手动工具、批量导出和 Mock LLM Provider。
+
+OpenAI LLM 解析是可选能力。源码模式下如需使用，请自行安装 SDK：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install openai
+```
+
+如果缺少 OpenAI SDK 或 API Key，UI 会回退到 Mock Provider，而不是崩溃。
 
 ## 常见问题
 
