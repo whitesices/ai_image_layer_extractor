@@ -179,7 +179,7 @@ Validation after this feature pass:
 
 ```text
 python -B -m pytest
-18 passed
+45 passed
 ```
 
 ## Validation
@@ -194,7 +194,7 @@ python -B -m pytest
 Latest result:
 
 ```text
-18 passed in 0.25s
+45 passed in 0.32s
 ```
 
 `pytest.ini` restricts discovery to `tests/` and disables pytest cache because earlier environment attempts created inaccessible `pytest-cache-files-*` folders in the project root.
@@ -237,3 +237,33 @@ Three directories named like `pytest-cache-files-*` may remain in the project ro
 6. Add OCR text layer detection.
 7. Add PSD export.
 8. Add UE UMG JSON export and UE Python Texture2D import automation.
+
+## Pro Upgrade Notes
+
+On 2026-05-06, the project was upgraded toward AI Image Layer Extractor Pro.
+
+Added:
+
+- `IMPLEMENTATION_PLAN.md`
+- `detectors/` with Mock, GroundingDINO placeholder, and OCR placeholder.
+- `matting/` with SimpleAlphaRefiner and BiRefNet placeholder.
+- `pipeline/` with target extraction, background, mask refine, and UE export pipelines.
+- `exporters/` with UE UMG and PSD-compatible exporters.
+- `core/project_package.py` for `.ailp` directory save/open.
+- `core/mask_editor.py` and `app/mask_tools_panel.py`.
+- `docs/` product, architecture, AI command, export contract, UE, privacy, and roadmap docs.
+- `config.example.yaml`.
+
+Current validation:
+
+```text
+python -B -m pytest
+45 passed
+```
+
+Packaging validation:
+
+- Source `MainWindow` offscreen smoke test passed.
+- `launcher.py --smoke-test` passed with `QT_QPA_PLATFORM=offscreen`.
+- `packaging/scripts/build_all.ps1` produced `release/AIImageLayerExtractor_Setup_0.1.0_x64.exe`.
+- Silent installer smoke test passed: install, installed EXE `--smoke-test`, silent uninstall, and user data preservation were verified.

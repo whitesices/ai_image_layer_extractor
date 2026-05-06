@@ -16,11 +16,13 @@ def _context() -> CommandContext:
         source_image_loaded=True,
         canvas_width=1024,
         canvas_height=1024,
-        layer_count=2,
+        layer_count=4,
         selected_layer_ids=["001"],
         available_layers=[
             {"id": "001", "name": "character"},
             {"id": "002", "name": "ui_icon"},
+            {"id": "003", "name": "weapon"},
+            {"id": "004", "name": "logo"},
         ],
     )
 
@@ -50,3 +52,54 @@ def test_mock_llm_provider_parses_padding() -> None:
 
     assert plan.tasks[0].sizes[0].padding == 32
 
+
+def test_mock_llm_provider_parses_multiple_targets() -> None:
+    plan = MockLLMProvider().parse_command("把人物、武器、背景分别导出", _context())
+
+    task = plan.tasks[0]
+    assert task.type == "extract_multiple_targets"
+    assert task.params["target_names"] == ["person", "weapon", "background"]
+
+
+def test_mock_llm_provider_parses_target_extraction() -> None:
+    plan = MockLLMProvider().parse_command("提取左边的人物", _context())
+
+    task = plan.tasks[0]
+    assert task.type == "extract_target"
+    assert task.target == "person"
+    assert task.params["position_hint"] == "left"
+
+
+def test_mock_llm_provider_parses_logo_extraction() -> None:
+    plan = MockLLMProvider().parse_command("把 logo 单独抠出来", _context())
+
+    assert plan.tasks[0].type == "extract_target"
+    assert plan.tasks[0].target == "logo"
+
+
+def test_mock_llm_provider_parses_text_detection() -> None:
+    plan = MockLLMProvider().parse_command("把文字区域识别出来", _context())
+
+    assert plan.tasks[0].type == "detect_text_regions"
+
+
+def test_mock_llm_provider_parses_ue_export() -> None:
+    plan = MockLLMProvider().parse_command("把所有图层导出成 UE UMG 可以用的资源", _context())
+
+    task = plan.tasks[0]
+    assert task.type == "export_for_ue_umg"
+    assert task.target == "all_layers"
+    assert task.params["generate_import_script"] is True
+
+
+def test_mock_llm_provider_parses_refine_mask() -> None:
+    plan = MockLLMProvider().parse_command("清理图层边缘白边", _context())
+
+    assert plan.tasks[0].type == "refine_mask"
+    assert plan.tasks[0].quality.remove_halo is True
+
+
+def test_mock_llm_provider_parses_psd_package() -> None:
+    plan = MockLLMProvider().parse_command("按 PSD 分层思路导出素材包", _context())
+
+    assert plan.tasks[0].type == "future_psd_export"

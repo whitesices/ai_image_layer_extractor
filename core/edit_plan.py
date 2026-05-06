@@ -6,13 +6,22 @@ from typing import Any
 
 SUPPORTED_TASK_TYPES = {
     "batch_export_layers",
+    "create_background_layer",
+    "create_shadow_layer",
+    "detect_text_regions",
     "resize_layer",
     "rename_layer",
+    "extract_target",
+    "extract_multiple_targets",
     "extract_object",
     "extract_all_objects",
     "remove_background",
+    "refine_mask",
+    "export_project",
+    "export_for_ue_umg",
     "edit_selected_region",
     "export_ue_umg_layout",
+    "future_psd_export",
 }
 
 SUPPORTED_FIT_MODES = {"contain", "cover", "stretch", "max_side", "original"}
@@ -114,8 +123,37 @@ def summarize_edit_plan(plan: ImageEditPlan) -> str:
             f"{spec.width}x{spec.height} {spec.fit_mode} padding={spec.padding} {spec.output_format}"
             for spec in task.sizes
         ) or "original"
-        target = task.target or ("layer_ids=" + ",".join(task.layer_ids) if task.layer_ids else "unspecified")
-        lines.append(f"{index}. {task.type}: target={target}; sizes={size_text}")
+        target = _format_task_target(task)
+        risk = task.params.get("risk_warning") or _default_risk_warning(task)
+        cloud_required = bool(task.params.get("requires_cloud_api", False))
+        target_names = task.params.get("target_names") or task.params.get("target_prompt")
+        lines.append(f"{index}. {task.type}")
+        lines.append(f"   target: {target}")
+        if target_names:
+            lines.append(f"   target names: {target_names}")
+        lines.append(f"   output sizes: {size_text}")
         if task.output_name:
             lines.append(f"   output_name={task.output_name}")
+        lines.append(f"   transparent: {task.transparent_background}")
+        lines.append(f"   cloud API required: {cloud_required}")
+        if risk:
+            lines.append(f"   risk warning: {risk}")
     return "\n".join(lines)
+
+
+def _format_task_target(task: EditTask) -> str:
+    if task.layer_ids:
+        return "layer_ids=" + ",".join(task.layer_ids)
+    if task.target:
+        return task.target
+    return "unspecified"
+
+
+def _default_risk_warning(task: EditTask) -> str:
+    if task.type in {"extract_target", "extract_multiple_targets", "detect_text_regions"} and not task.params.get("bbox"):
+        return "May require manual selection or an optional detector backend."
+    if task.type in {"future_psd_export"}:
+        return "Experimental. Current implementation may export a PSD-compatible package instead of a native PSD."
+    if task.type in {"edit_selected_region"} and task.params.get("requires_cloud_api"):
+        return "Cloud image editing may upload image pixels if enabled."
+    return ""

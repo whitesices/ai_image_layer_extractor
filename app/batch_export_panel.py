@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QRadioButton,
     QSpinBox,
@@ -69,10 +70,12 @@ class BatchExportPanel(QWidget):
 
         self.layer_count_label = QLabel()
         self.all_radio = QRadioButton("Export All Layers")
+        self.visible_radio = QRadioButton("Export Visible Layers")
         self.selected_radio = QRadioButton("Export Selected Layers")
         self.all_radio.setChecked(True)
         self.target_group = QButtonGroup(self)
         self.target_group.addButton(self.all_radio)
+        self.target_group.addButton(self.visible_radio)
         self.target_group.addButton(self.selected_radio)
 
         self.size_checks: list[QCheckBox] = []
@@ -106,12 +109,18 @@ class BatchExportPanel(QWidget):
         self.format_combo = QComboBox()
         self.format_combo.addItems(["png", "webp"])
 
+        self.filename_template_edit = QLineEdit("{id}_{name}_{width}x{height}.{ext}")
+        self.filename_template_edit.setToolTip(
+            "Available fields: {id}, {index}, {name}, {size}, {width}, {height}, {ext}"
+        )
+
         form = QFormLayout()
         form.addRow("Target", self._target_widget())
         form.addRow("Sizes", size_row)
         form.addRow("Fit mode", self.fit_mode_combo)
         form.addRow("Padding", self.padding_spin)
         form.addRow("Format", self.format_combo)
+        form.addRow("Filename template", self.filename_template_edit)
 
         self.export_button = QPushButton("Export Batch")
         self.output_edit = QTextEdit()
@@ -138,6 +147,8 @@ class BatchExportPanel(QWidget):
             check.setChecked(size in settings.default_batch_sizes)
         self.fit_mode_combo.setCurrentText(settings.default_fit_mode)
         self.padding_spin.setValue(settings.default_padding)
+        if settings.filename_template:
+            self.filename_template_edit.setText(settings.filename_template)
 
     def export_batch(self) -> None:
         if self.project.image is None:
@@ -156,7 +167,12 @@ class BatchExportPanel(QWidget):
             self.output_edit.setPlainText("Select at least one output size.")
             return
 
-        target = "selected_layers" if self.selected_radio.isChecked() else "all_layers"
+        if self.selected_radio.isChecked():
+            target = "selected_layers"
+        elif self.visible_radio.isChecked():
+            target = "visible_layers"
+        else:
+            target = "all_layers"
         plan = ImageEditPlan(
             version="1.0",
             language="zh-CN",
@@ -172,7 +188,7 @@ class BatchExportPanel(QWidget):
                     sizes=specs,
                     transparent_background=True,
                     quality=QualityOptions(),
-                    params={},
+                    params={"filename_template": self.filename_template_edit.text().strip()},
                 )
             ],
         )
@@ -242,6 +258,7 @@ class BatchExportPanel(QWidget):
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.all_radio)
+        layout.addWidget(self.visible_radio)
         layout.addWidget(self.selected_radio)
         layout.addStretch(1)
         return widget

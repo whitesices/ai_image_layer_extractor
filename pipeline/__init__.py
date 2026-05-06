@@ -1,0 +1,2 @@
+"""Composable local processing pipelines."""
+

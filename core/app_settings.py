@@ -40,10 +40,18 @@ class AppSettings:
     openai_model: str = "gpt-4o-mini"
     openai_api_key: str = ""
     save_openai_api_key: bool = False
+    detector_backend: str = "mock"
+    segmenter_backend: str = "opencv_grabcut"
+    matting_refiner: str = "simple"
     default_export_dir: str = ""
     default_batch_sizes: list[int] = field(default_factory=lambda: [512, 1024])
     default_fit_mode: str = "contain"
     default_padding: int = 0
+    filename_template: str = "{id}_{name}_{width}x{height}.{ext}"
+    allow_cloud_llm_text_planning: bool = False
+    allow_cloud_image_editing: bool = False
+    ask_before_uploading_images: bool = True
+    never_upload_images: bool = True
 
     def effective_export_dir(self) -> Path:
         if self.default_export_dir.strip():
@@ -92,5 +100,14 @@ class SettingsManager:
             if isinstance(value, int | float | str) and str(value).isdigit()
         ]
         settings.default_padding = max(0, int(settings.default_padding))
-        settings.llm_provider = settings.llm_provider if settings.llm_provider in {"mock", "openai"} else "mock"
+        allowed_llm = {"mock", "openai", "openai_compatible", "deepseek_compatible", "local_server"}
+        allowed_detector = {"mock", "grounding_dino", "ocr"}
+        allowed_segmenter = {"opencv_grabcut", "rembg", "sam2"}
+        allowed_matting = {"simple", "birefnet"}
+        settings.llm_provider = settings.llm_provider if settings.llm_provider in allowed_llm else "mock"
+        settings.detector_backend = settings.detector_backend if settings.detector_backend in allowed_detector else "mock"
+        settings.segmenter_backend = settings.segmenter_backend if settings.segmenter_backend in allowed_segmenter else "opencv_grabcut"
+        settings.matting_refiner = settings.matting_refiner if settings.matting_refiner in allowed_matting else "simple"
+        if settings.never_upload_images:
+            settings.allow_cloud_image_editing = False
         return settings

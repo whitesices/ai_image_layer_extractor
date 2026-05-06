@@ -83,6 +83,8 @@ release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
 
 安装包不会包含 OpenAI API Key，也不会强制安装 `torch`、SAM2、rembg 或 OCR 包。默认安装版可以在离线状态下继续使用手动工具、批量导出和 Mock LLM Provider。
 
+新增的 Pro 模块位于 `detectors/`、`matting/`、`pipeline/` 和 `exporters/`，默认只使用现有运行依赖。用户明确安装可选模型后端后，才会启用对应高级能力。
+
 OpenAI LLM 解析是可选能力。源码模式下如需使用，请自行安装 SDK：
 
 ```powershell

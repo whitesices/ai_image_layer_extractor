@@ -179,7 +179,7 @@ release/AIImageLayerExtractor_Setup_0.1.0_x64.exe
 
 ```text
 python -B -m pytest
-18 passed
+45 passed
 ```
 
 ## 验证
@@ -194,7 +194,7 @@ python -B -m pytest
 最新结果：
 
 ```text
-18 passed in 0.25s
+45 passed in 0.32s
 ```
 
 `pytest.ini` 将测试发现范围限制在 `tests/`，并禁用 pytest cache，因为早先的环境尝试在项目根目录创建了无法访问的 `pytest-cache-files-*` 文件夹。
@@ -237,3 +237,33 @@ python main.py
 6. 添加 OCR 文字图层检测。
 7. 添加 PSD 导出。
 8. 添加 UE UMG JSON 导出和 UE Python Texture2D 导入自动化。
+
+## Pro 升级记录
+
+2026-05-06，项目向 AI Image Layer Extractor Pro 方向升级。
+
+新增：
+
+- `IMPLEMENTATION_PLAN.md`
+- `detectors/`：Mock、GroundingDINO 占位和 OCR 占位。
+- `matting/`：SimpleAlphaRefiner 和 BiRefNet 占位。
+- `pipeline/`：target extraction、background、mask refine 和 UE export pipeline。
+- `exporters/`：UE UMG exporter 和 PSD-compatible exporter。
+- `core/project_package.py`：`.ailp` 目录包保存/打开。
+- `core/mask_editor.py` 和 `app/mask_tools_panel.py`。
+- `docs/`：产品、架构、AI 指令、导出契约、UE、隐私和路线图文档。
+- `config.example.yaml`。
+
+当前验证：
+
+```text
+python -B -m pytest
+45 passed
+```
+
+打包验证：
+
+- 源码版 `MainWindow` offscreen smoke test 通过。
+- `launcher.py --smoke-test` 在 `QT_QPA_PLATFORM=offscreen` 下通过。
+- `packaging/scripts/build_all.ps1` 已生成 `release/AIImageLayerExtractor_Setup_0.1.0_x64.exe`。
+- 安装器静默烟测通过：安装、已安装 EXE `--smoke-test`、静默卸载和用户数据保留均已验证。

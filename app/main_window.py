@@ -21,10 +21,23 @@ from app.batch_export_panel import BatchExportPanel
 from app.canvas_widget import CanvasWidget
 from app.export_dialog import ExportDialog
 from app.layer_panel import LayerPanel
+from app.mask_tools_panel import MaskToolsPanel
 from app.settings_dialog import SettingsDialog
 from core.exporter import LayerExporter
 from core.image_utils import load_source_image
 from core.layer import MaskResult
+from core.mask_editor import MaskEditor
+from core.mask_utils import (
+    clean_mask,
+    dilate_mask,
+    erode_mask,
+    feather_mask,
+    fill_small_holes,
+    mask_to_bbox,
+    remove_small_islands,
+    smooth_jagged_edges,
+)
+from core.project_package import ProjectPackage
 from core.project import ProjectData
 from segmenters.opencv_segmenter import OpenCVSegmenter
 
@@ -44,6 +57,7 @@ class MainWindow(QMainWindow):
         self.current_selection: BBox | None = None
         self.current_mask_result: MaskResult | None = None
         self.selected_layer_id: str | None = None
+        self.mask_editor = MaskEditor(history_limit=10)
 
         self.canvas = CanvasWidget()
         self.layer_panel = LayerPanel()
@@ -85,6 +99,14 @@ class MainWindow(QMainWindow):
         fit_action.triggered.connect(self.canvas.fit_to_view)
         toolbar.addAction(fit_action)
 
+        save_project_action = QAction("Save Project", self)
+        save_project_action.triggered.connect(self.save_project_package)
+        toolbar.addAction(save_project_action)
+
+        open_project_action = QAction("Open Project", self)
+        open_project_action.triggered.connect(self.open_project_package)
+        toolbar.addAction(open_project_action)
+
     def _build_docks_and_menus(self) -> None:
         self.ai_command_panel = AICommandPanel(
             self.project,
@@ -110,6 +132,13 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.batch_dock)
         self.batch_dock.hide()
 
+        self.mask_tools_panel = MaskToolsPanel(self)
+        self.mask_dock = QDockWidget("Mask Tools", self)
+        self.mask_dock.setObjectName("MaskToolsDock")
+        self.mask_dock.setWidget(self.mask_tools_panel)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mask_dock)
+        self.mask_dock.hide()
+
         ai_menu = self.menuBar().addMenu("AI")
         show_ai_action = QAction("AI Command Panel", self)
         show_ai_action.triggered.connect(self._show_ai_command_panel)
@@ -123,6 +152,19 @@ class MainWindow(QMainWindow):
         show_batch_action = QAction("Batch Export", self)
         show_batch_action.triggered.connect(self._show_batch_export_panel)
         batch_menu.addAction(show_batch_action)
+
+        mask_menu = self.menuBar().addMenu("Mask")
+        show_mask_action = QAction("Mask Tools", self)
+        show_mask_action.triggered.connect(self._show_mask_tools_panel)
+        mask_menu.addAction(show_mask_action)
+
+        project_menu = self.menuBar().addMenu("Project")
+        save_package_action = QAction("Save Project", self)
+        save_package_action.triggered.connect(self.save_project_package)
+        project_menu.addAction(save_package_action)
+        open_package_action = QAction("Open Project", self)
+        open_package_action.triggered.connect(self.open_project_package)
+        project_menu.addAction(open_package_action)
 
     def _connect_signals(self) -> None:
         self.canvas.selectionChanged.connect(self._on_selection_changed)
@@ -138,6 +180,9 @@ class MainWindow(QMainWindow):
         self.layer_panel.layerSelected.connect(self._select_layer)
         self.ai_command_panel.executionFinished.connect(self._refresh_layers)
         self.batch_export_panel.exportFinished.connect(self._refresh_layers)
+        self.mask_tools_panel.brushModeChanged.connect(self.canvas.set_mask_brush)
+        self.mask_tools_panel.actionRequested.connect(self._handle_mask_tool_action)
+        self.canvas.maskBrushStroke.connect(self._handle_mask_brush_stroke)
 
     def open_image(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -250,6 +295,42 @@ class MainWindow(QMainWindow):
         self.batch_export_panel.set_settings(dialog.settings)
         self.statusBar().showMessage("Settings saved")
 
+    def save_project_package(self) -> None:
+        if self.project.image is None:
+            self._show_info("Open an image first.")
+            return
+        directory = QFileDialog.getExistingDirectory(self, "Save .ailp project directory", str(self._default_export_dir()))
+        if not directory:
+            return
+        try:
+            saved_dir = ProjectPackage().save(
+                self.project,
+                directory,
+                selected_layer_id=self.selected_layer_id,
+            )
+        except Exception as exc:
+            self._show_error("Save Project Failed", str(exc))
+            return
+        self.statusBar().showMessage(f"Saved project package to {saved_dir}")
+
+    def open_project_package(self) -> None:
+        directory = QFileDialog.getExistingDirectory(self, "Open .ailp project directory", str(self._default_export_dir()))
+        if not directory:
+            return
+        try:
+            self.project = ProjectPackage().open(directory)
+        except Exception as exc:
+            self._show_error("Open Project Failed", str(exc))
+            return
+        self.ai_command_panel.project = self.project
+        self.batch_export_panel.project = self.project
+        self.current_selection = None
+        self.current_mask_result = None
+        self.selected_layer_id = self.project.layers[0].id if self.project.layers else None
+        self.canvas.set_image(self.project.image)
+        self._refresh_layers()
+        self.statusBar().showMessage(f"Opened project package {directory}")
+
     def delete_layer(self, layer_id: str) -> None:
         removed = self.project.remove_layer(layer_id)
         if removed:
@@ -331,6 +412,96 @@ class MainWindow(QMainWindow):
     def _show_batch_export_panel(self) -> None:
         self.batch_dock.show()
         self.batch_dock.raise_()
+
+    def _show_mask_tools_panel(self) -> None:
+        self.mask_dock.show()
+        self.mask_dock.raise_()
+
+    def _handle_mask_brush_stroke(self, point: object, mode: str, size: int) -> None:
+        mask = self._current_edit_mask()
+        if mask is None:
+            self.statusBar().showMessage("No preview mask or selected layer mask to edit.")
+            return
+        x, y = point
+        edited = self.mask_editor.apply_brush(mask, int(x), int(y), size, mode)
+        self._set_current_edit_mask(edited)
+
+    def _handle_mask_tool_action(self, action: str, value: int) -> None:
+        mask = self._current_edit_mask()
+        if action == "reset":
+            self.mask_editor.reset_history()
+            self.canvas.set_mask_brush(None)
+            self.statusBar().showMessage("Mask edit history reset.")
+            return
+        if mask is None:
+            self.statusBar().showMessage("No preview mask or selected layer mask to edit.")
+            return
+
+        try:
+            if action == "undo":
+                edited = self.mask_editor.undo(mask)
+            elif action == "redo":
+                edited = self.mask_editor.redo(mask)
+            else:
+                self.mask_editor.history.push(mask)
+                radius = max(1, int(value) // 12)
+                pixels = max(1, int(value) // 16)
+                if action == "feather":
+                    edited = feather_mask(mask, radius=radius)
+                elif action == "expand":
+                    edited = dilate_mask(mask, pixels=pixels)
+                elif action == "shrink":
+                    edited = erode_mask(mask, pixels=pixels)
+                elif action == "smooth":
+                    edited = smooth_jagged_edges(mask, radius=radius)
+                elif action == "fill_holes":
+                    edited = fill_small_holes(mask, max_hole_area=max(16, value * value))
+                elif action == "remove_islands":
+                    edited = remove_small_islands(mask, min_area=max(16, value * value))
+                elif action == "clean_halo":
+                    edited = clean_mask(smooth_jagged_edges(mask, radius=1), min_area=64)
+                elif action == "apply":
+                    self.statusBar().showMessage("Mask changes applied.")
+                    return
+                else:
+                    self.statusBar().showMessage(f"Unknown mask action: {action}")
+                    return
+        except Exception as exc:
+            self._show_error("Mask Tool Failed", str(exc))
+            return
+        self._set_current_edit_mask(edited)
+        self.statusBar().showMessage(f"Mask action applied: {action}")
+
+    def _current_edit_mask(self):
+        if self.current_mask_result is not None:
+            return self.current_mask_result.mask
+        if self.selected_layer_id:
+            layer = self.project.get_layer(self.selected_layer_id)
+            if layer is not None:
+                return layer.mask
+        return None
+
+    def _set_current_edit_mask(self, mask) -> None:
+        bbox = mask_to_bbox(mask)
+        if bbox is None:
+            self.statusBar().showMessage("Edited mask is empty; keeping previous mask.")
+            return
+        if self.current_mask_result is not None:
+            self.current_mask_result = MaskResult(
+                mask=mask,
+                bbox=bbox,
+                score=self.current_mask_result.score,
+                source=f"{self.current_mask_result.source}_edited",
+            )
+            self.canvas.set_preview_mask(self.current_mask_result.mask)
+            return
+        if self.selected_layer_id:
+            layer = self.project.get_layer(self.selected_layer_id)
+            if layer is not None:
+                layer.mask = mask
+                layer.bbox = bbox
+                layer.metadata["mask_edited"] = True
+                self._refresh_layers()
 
     def _default_export_dir(self) -> Path:
         packaged_export_dir = os.environ.get("AI_IMAGE_LAYER_EXTRACTOR_EXPORT_DIR")

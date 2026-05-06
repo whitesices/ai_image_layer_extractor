@@ -1,0 +1,25 @@
+# AI Image Layer Extractor Pro example configuration.
+# Copy values into the in-app Settings dialog or into your user settings file:
+# %LOCALAPPDATA%/AIImageLayerExtractor/config/settings.json
+#
+# Do not commit real API keys.
+
+llm_provider: mock
+openai_model: gpt-4o-mini
+openai_api_key: ""
+save_openai_api_key: false
+
+detector_backend: mock
+segmenter_backend: opencv_grabcut
+matting_refiner: simple
+
+default_export_dir: ""
+default_batch_sizes: [512, 1024]
+default_fit_mode: contain
+default_padding: 0
+filename_template: "{id}_{name}_{width}x{height}.{ext}"
+
+allow_cloud_llm_text_planning: false
+allow_cloud_image_editing: false
+ask_before_uploading_images: true
+never_upload_images: true

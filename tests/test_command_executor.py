@@ -119,3 +119,60 @@ def test_command_executor_rename_layer() -> None:
         assert project.layers[0].name == "player_character"
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_refine_mask_updates_layer_metadata() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_refine_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        plan = ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="refine_mask",
+            requires_confirmation=False,
+            raw_user_text="清理图层边缘白边",
+            tasks=[
+                EditTask(
+                    type="refine_mask",
+                    target="all_layers",
+                    layer_ids=[],
+                    output_name=None,
+                    sizes=[],
+                    transparent_background=True,
+                    quality=QualityOptions(feather_radius=0),
+                    params={"remove_small_islands": True, "clean_holes": True},
+                )
+            ],
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        assert project.layers[0].metadata["mask_refined"] is True
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_exports_visible_layers_only() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_visible_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        second_mask = np.zeros((24, 32), dtype=np.uint8)
+        second_mask[2:8, 2:8] = 255
+        second = project.add_layer_from_mask("hidden", MaskResult(mask=second_mask))
+        second.visible = False
+        plan = _batch_plan()
+        plan.tasks[0].target = "visible_layers"
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        report_path = tmp_path / "Export" / "batch_report.json"
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        assert data["exported_layers"] == ["001"]
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)

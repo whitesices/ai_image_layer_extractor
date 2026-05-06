@@ -143,6 +143,42 @@ Supported fit modes:
 Batch export writes `batch_report.json` and multi-size folders under
 `Export/layers/`.
 
+## Mask Tools
+
+Open `Mask > Mask Tools` to edit the current preview mask or selected layer
+mask. The panel includes brush add/erase, brush size, feather, expand, shrink,
+smooth, fill holes, remove islands, undo, redo, apply, and reset.
+
+Mask tools only edit masks. They do not modify the source image pixels.
+
+## UE UMG Export
+
+AI commands such as `把所有图层导出成 UE UMG 可以用的资源` generate a UE package:
+
+```text
+Export_UE/
++-- Textures/
++-- Masks/
++-- Data/
++-- Scripts/
+```
+
+The generated `Scripts/import_to_unreal.py` can be run inside Unreal Editor
+Python to import textures. Full Widget Blueprint creation is reserved for a
+future extension.
+
+## Project Packages
+
+Use `Project > Save Project` and `Project > Open Project` to work with `.ailp`
+directory packages. Packages include `project.json`, source image, masks,
+layers, and preview. API keys are never saved into project packages.
+
+## PSD-Compatible Export
+
+The AI command `按 PSD 分层思路导出素材包` exports a PSD-compatible package with
+transparent layer PNGs, masks, `project.json`, and `README_PSD_COMPATIBLE.txt`.
+Native PSD writing is an experimental future extension.
+
 ## LLM Provider Settings
 
 Open `AI > Settings` to choose:
@@ -150,6 +186,12 @@ Open `AI > Settings` to choose:
 - `Mock`: offline rule-based parser, no API key required.
 - `OpenAI`: optional external parser that turns natural language into
   `ImageEditPlan` JSON.
+- `OpenAI Compatible`, `DeepSeek Compatible`, and `Local Server`: placeholders
+  for future compatible text-planning providers.
+
+Optional detector/segmenter/matting settings include Mock, GroundingDINO, OCR,
+OpenCV GrabCut, rembg, SAM2, Simple, and BiRefNet. Missing optional dependencies
+fall back safely and do not prevent app startup.
 
 OpenAI support is optional. To use it in source mode, install the SDK yourself:
 

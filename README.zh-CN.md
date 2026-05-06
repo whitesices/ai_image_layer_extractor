@@ -134,12 +134,43 @@ ImportError: DLL load failed while importing QtWidgets
 
 批量导出会写入 `batch_report.json`，并在 `Export/layers/` 下生成多尺寸目录。
 
+## Mask Tools
+
+打开 `Mask > Mask Tools` 可以编辑当前 preview mask 或选中图层的 mask。面板包含 Brush Add、Brush Erase、Size、Feather、Expand、Shrink、Smooth、Fill Holes、Remove Islands、Undo、Redo、Apply 和 Reset。
+
+Mask Tools 只修改 mask，不修改源图片像素。
+
+## UE UMG 导出
+
+AI 指令 `把所有图层导出成 UE UMG 可以用的资源` 会生成 UE 资源包：
+
+```text
+Export_UE/
++-- Textures/
++-- Masks/
++-- Data/
++-- Scripts/
+```
+
+生成的 `Scripts/import_to_unreal.py` 可在 Unreal Editor Python 中运行，用于导入 PNG 贴图。自动创建完整 UMG Widget Blueprint 是后续扩展。
+
+## 项目包
+
+使用 `Project > Save Project` 和 `Project > Open Project` 可以保存/打开 `.ailp` 目录包。项目包包含 `project.json`、源图、mask、图层和 preview。API Key 永远不会写入项目包。
+
+## PSD-Compatible 导出
+
+AI 指令 `按 PSD 分层思路导出素材包` 会导出 PSD-compatible package，包含透明图层 PNG、mask、`project.json` 和 `README_PSD_COMPATIBLE.txt`。真实 PSD 写入属于实验性后续扩展。
+
 ## LLM Provider 设置
 
 打开 `AI > Settings` 可以选择：
 
 - `Mock`：离线规则解析器，不需要 API Key。
 - `OpenAI`：可选外部解析器，用于把自然语言转换为 `ImageEditPlan` JSON。
+- `OpenAI Compatible`、`DeepSeek Compatible`、`Local Server`：未来兼容文本规划 Provider 的占位。
+
+可选 detector / segmenter / matting 设置包括 Mock、GroundingDINO、OCR、OpenCV GrabCut、rembg、SAM2、Simple 和 BiRefNet。缺少可选依赖时会安全 fallback，不影响应用启动。
 
 OpenAI 支持是可选的。源码模式下如需使用，请自行安装 SDK：
 

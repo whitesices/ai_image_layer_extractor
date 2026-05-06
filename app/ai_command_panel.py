@@ -233,7 +233,7 @@ class AICommandPanel(QWidget):
         self.execute_button.setEnabled(not busy)
 
     def _create_provider(self) -> BaseLLMProvider:
-        if self.settings.llm_provider == "openai":
+        if self.settings.llm_provider in {"openai", "openai_compatible"}:
             return OpenAIProvider(self.settings)
         return MockLLMProvider()
 
@@ -258,4 +258,3 @@ class AICommandPanel(QWidget):
                 for layer in self.project.layers
             ],
         )
-

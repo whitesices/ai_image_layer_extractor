@@ -20,6 +20,7 @@ class CanvasWidget(QWidget):
     selectionChanged = Signal(object)
     selectionCompleted = Signal(object)
     layerClicked = Signal(str)
+    maskBrushStroke = Signal(object, str, int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -41,6 +42,8 @@ class CanvasWidget(QWidget):
         self._selection_end = QPointF()
         self._last_mouse_pos = QPointF()
         self._has_custom_view = False
+        self._mask_brush_mode: str | None = None
+        self._mask_brush_size = 24
 
     def set_image(self, image: Image.Image | None) -> None:
         self._image = image.copy() if image is not None else None
@@ -73,6 +76,11 @@ class CanvasWidget(QWidget):
 
     def current_selection_rect(self) -> BBox | None:
         return self._selection_rect_image()
+
+    def set_mask_brush(self, mode: str | None, size: int = 24) -> None:
+        self._mask_brush_mode = mode if mode in {"add", "erase"} else None
+        self._mask_brush_size = max(1, int(size))
+        self.setCursor(Qt.CursorShape.CrossCursor if self._mask_brush_mode else Qt.CursorShape.ArrowCursor)
 
     def fit_to_view(self) -> None:
         if self._image is None or self.width() <= 0 or self.height() <= 0:
@@ -128,6 +136,10 @@ class CanvasWidget(QWidget):
 
         self._last_mouse_pos = event.position()
         if event.button() == Qt.MouseButton.LeftButton:
+            if self._mask_brush_mode is not None:
+                image_pos = self._clamp_image_point(self._widget_to_image(event.position()))
+                self.maskBrushStroke.emit((int(round(image_pos.x())), int(round(image_pos.y()))), self._mask_brush_mode, self._mask_brush_size)
+                return
             clicked_layer = self._layer_at(event.position())
             if clicked_layer is not None:
                 self.layerClicked.emit(clicked_layer.id)
@@ -150,6 +162,9 @@ class CanvasWidget(QWidget):
             self._selection_end = self._clamp_image_point(self._widget_to_image(event.position()))
             self.selectionChanged.emit(self._selection_rect_image())
             self.update()
+        elif self._mask_brush_mode is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            image_pos = self._clamp_image_point(self._widget_to_image(event.position()))
+            self.maskBrushStroke.emit((int(round(image_pos.x())), int(round(image_pos.y()))), self._mask_brush_mode, self._mask_brush_size)
         elif self._is_panning:
             delta = event.position() - self._last_mouse_pos
             self._pan += delta

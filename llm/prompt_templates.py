@@ -11,7 +11,7 @@ The JSON must match this ImageEditPlan shape:
   "requires_confirmation": true,
   "tasks": [
     {
-      "type": "batch_export_layers | resize_layer | rename_layer | extract_object | extract_all_objects | remove_background | edit_selected_region | export_ue_umg_layout",
+      "type": "extract_target | extract_multiple_targets | batch_export_layers | resize_layer | rename_layer | remove_background | refine_mask | export_project | export_for_ue_umg | create_background_layer | create_shadow_layer | detect_text_regions | future_psd_export | edit_selected_region",
       "target": "all_layers | selected_layers | layer_name:<name> | null",
       "layer_ids": [],
       "output_name": null,
@@ -46,6 +46,10 @@ Rules:
 - For "all layers", use target="all_layers" and layer_ids=[].
 - For "selected/current selected layers", use target="selected_layers" and layer_ids from context if available.
 - For rename requests, use type="rename_layer" and put the new layer name in output_name.
+- For UE/UMG export requests, use type="export_for_ue_umg".
+- For PSD requests, use type="future_psd_export" unless a native PSD writer is explicitly available.
+- For edge cleanup requests, use type="refine_mask".
+- For prompt-only extraction requests without a bounding box, set params.risk_warning to note that manual selection or an optional detector may be required.
 
 Example user input:
 把所有图层导出 512 和 1024 两套透明 PNG，四周留 32px 空白

@@ -89,6 +89,10 @@ The installer does not include an OpenAI API key and does not require `torch`,
 SAM2, rembg, or OCR packages. The default installed app remains usable offline
 with manual tools, batch export, and the mock LLM provider.
 
+New Pro modules under `detectors/`, `matting/`, `pipeline/`, and `exporters/`
+use only existing runtime dependencies unless the user explicitly installs
+optional model backends.
+
 OpenAI LLM parsing is optional. In source mode, install the SDK only if needed:
 
 ```powershell

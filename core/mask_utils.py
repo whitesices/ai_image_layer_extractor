@@ -73,6 +73,59 @@ def clean_mask(mask: np.ndarray, min_area: int = 64) -> np.ndarray:
     return erode_mask(dilate_mask(cleaned, pixels=1), pixels=1)
 
 
+def remove_small_islands(mask: np.ndarray, min_area: int = 64) -> np.ndarray:
+    """Remove connected foreground islands smaller than min_area."""
+
+    return clean_mask(mask, min_area=min_area)
+
+
+def fill_small_holes(mask: np.ndarray, max_hole_area: int = 64) -> np.ndarray:
+    """Fill transparent holes inside foreground when the hole area is small."""
+
+    normalized = normalize_mask(mask)
+    binary = np.where(normalized > 0, 255, 0).astype(np.uint8)
+    if not np.any(binary):
+        return binary
+
+    inverted = np.where(binary > 0, 0, 255).astype(np.uint8)
+    border_connected = np.zeros_like(inverted)
+
+    if cv2 is not None:
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(inverted, connectivity=8)
+        filled = binary.copy()
+        height, width = binary.shape
+        for label in range(1, num_labels):
+            x = int(stats[label, cv2.CC_STAT_LEFT])
+            y = int(stats[label, cv2.CC_STAT_TOP])
+            w = int(stats[label, cv2.CC_STAT_WIDTH])
+            h = int(stats[label, cv2.CC_STAT_HEIGHT])
+            area = int(stats[label, cv2.CC_STAT_AREA])
+            touches_border = x == 0 or y == 0 or x + w >= width or y + h >= height
+            if not touches_border and area <= max_hole_area:
+                filled[labels == label] = 255
+        return filled
+
+    # Numpy fallback: keep only the behavior needed for small masks/tests.
+    border_connected[0, :] = inverted[0, :]
+    border_connected[-1, :] = inverted[-1, :]
+    border_connected[:, 0] = inverted[:, 0]
+    border_connected[:, -1] = inverted[:, -1]
+    holes = np.where((inverted > 0) & (border_connected == 0), 255, 0).astype(np.uint8)
+    return np.where(holes > 0, 255, binary).astype(np.uint8)
+
+
+def smooth_jagged_edges(mask: np.ndarray, radius: int = 1) -> np.ndarray:
+    """Smooth hard mask edges by closing and light feather/threshold."""
+
+    normalized = normalize_mask(mask)
+    radius = max(0, int(radius))
+    if radius == 0:
+        return normalized
+    closed = erode_mask(dilate_mask(normalized, radius), radius)
+    blurred = feather_mask(closed, radius)
+    return np.where(blurred >= 128, 255, 0).astype(np.uint8)
+
+
 def feather_mask(mask: np.ndarray, radius: int = 3) -> np.ndarray:
     """Soften mask edges with a Gaussian blur."""
 

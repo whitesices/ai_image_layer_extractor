@@ -8,3 +8,6 @@ build/
 dist/
 release/
 *.log
+config/settings.json
+settings.json
+*.ailp/
