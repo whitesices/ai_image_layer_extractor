@@ -37,8 +37,8 @@ Implemented MVP capabilities:
 - `segmenters/rembg_segmenter.py`: placeholder for future rembg backend.
 - `segmenters/sam2_segmenter.py`: placeholder for future SAM2 backend.
 - `app/canvas_widget.py`: image display, selection, zoom/pan, mask overlay, layer bbox drawing.
-- `app/layer_panel.py`: layer list and UI actions.
-- `app/main_window.py`: orchestration between UI, project state, segmentation, and export.
+- `app/layer_panel.py`: layer list, layer actions, and inline rename editor sizing.
+- `app/main_window.py`: orchestration between UI, project state, segmentation, export, and global stylesheet.
 
 ## Architecture Notes
 
@@ -58,10 +58,10 @@ Export folder:
 
 ```text
 Export/
-├── layers/
-├── masks/
-├── project.json
-└── preview.png
++-- layers/
++-- masks/
++-- project.json
++-- preview.png
 ```
 
 Layer JSON fields:
@@ -80,6 +80,28 @@ Layer JSON fields:
 
 Keep this contract stable unless downstream importers are updated at the same time.
 
+## UI Maintenance Notes
+
+On 2026-05-06, layer renaming in the right-side layer list clipped the inline editor text vertically. The screenshot showed the selected `QListWidgetItem` row and embedded rename `QLineEdit` were too short, so characters were partially hidden.
+
+Fix applied:
+
+- Added `LayerItemDelegate` in `app/layer_panel.py`.
+- Overrode `sizeHint()` to keep layer rows at least 42 px tall.
+- Overrode `createEditor()` so inline `QLineEdit` editors get enough minimum height.
+- Overrode `updateEditorGeometry()` to inset the editor inside the row instead of letting it press against row edges.
+- Updated `app/main_window.py` stylesheet for `QListWidget::item` and `QListWidget QLineEdit` padding/min-height.
+
+Validation after the UI fix:
+
+```text
+python -m compileall app core segmenters tests main.py
+python -B -m pytest
+QT_QPA_PLATFORM=offscreen MainWindow smoke test
+```
+
+Result: tests passed and `MainWindow` instantiated successfully.
+
 ## Validation
 
 Known passing command:
@@ -92,7 +114,7 @@ python -B -m pytest
 Latest result:
 
 ```text
-5 passed in 0.16s
+5 passed in 0.13s
 ```
 
 `pytest.ini` restricts discovery to `tests/` and disables pytest cache because earlier environment attempts created inaccessible `pytest-cache-files-*` folders in the project root.
@@ -100,6 +122,14 @@ Latest result:
 ## Environment Notes
 
 At creation time, the active global Python was 3.12.7. It did not have `PySide6` or `cv2` installed. The code is still testable because `mask_utils.py` and `OpenCVSegmenter` include a minimal fallback when `cv2` is unavailable.
+
+On 2026-05-06, `PySide6==6.11.0` failed on this machine with:
+
+```text
+ImportError: DLL load failed while importing QtWidgets: specified program could not be found.
+```
+
+`dumpbin` showed `Qt6Core.dll` trying to load ICU-related DLLs, and the system/Anaconda ICU versions were not compatible. Pinning and reinstalling `PySide6==6.7.3` fixed `QtCore`, `QtWidgets`, and `MainWindow` smoke tests. Keep `requirements.txt` pinned unless a newer PySide6 version is verified locally.
 
 For full GUI and GrabCut behavior, install:
 

@@ -308,10 +308,18 @@ class MainWindow(QMainWindow):
                 padding: 4px;
             }
             QListWidget::item {
-                padding: 6px;
+                padding: 4px 6px;
+                min-height: 34px;
             }
             QListWidget::item:selected {
                 background: #145a66;
+            }
+            QListWidget QLineEdit {
+                min-height: 28px;
+                padding: 2px 6px;
+                margin: 0;
+                selection-background-color: #1976d2;
+                selection-color: #ffffff;
             }
             QLineEdit {
                 background: #202124;

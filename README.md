@@ -29,6 +29,21 @@ cd C:\ML\EditImage\ai_image_layer_extractor
 python main.py
 ```
 
+如果在 Windows 上遇到类似下面的错误：
+
+```text
+ImportError: DLL load failed while importing QtWidgets: 找不到指定的程序。
+```
+
+通常是 PySide6/Qt 的 DLL 依赖版本不兼容。当前项目已验证 `PySide6==6.7.3` 可正常导入。请在虚拟环境中执行：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --force-reinstall PySide6==6.7.3
+.\.venv\Scripts\python.exe -c "from PySide6.QtWidgets import QApplication; print('QtWidgets OK')"
+```
+
+如果 PowerShell 当前处于 Anaconda `(base)` 环境，仍然可以直接使用 `.venv\Scripts\python.exe` 运行项目；不要混用全局 `python main.py`，以免使用到错误的解释器或包。
+
 ## 使用流程
 
 1. 点击 `Open Image` 导入 PNG / JPG / WEBP 图片。

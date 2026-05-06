@@ -1,18 +1,51 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QModelIndex, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
 
 from core.layer import LayerItem
+
+
+class LayerItemDelegate(QStyledItemDelegate):
+    """Keep layer rows and inline rename editors tall enough for readable text."""
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:  # type: ignore[override]
+        size = super().sizeHint(option, index)
+        font_height = option.fontMetrics.height()
+        return QSize(size.width(), max(size.height(), font_height + 22, 42))
+
+    def createEditor(
+        self,
+        parent: QWidget,
+        option: QStyleOptionViewItem,
+        index: QModelIndex,
+    ) -> QWidget:  # type: ignore[override]
+        editor = super().createEditor(parent, option, index)
+        if isinstance(editor, QLineEdit):
+            editor.setMinimumHeight(max(option.fontMetrics.height() + 14, 30))
+            editor.setFrame(True)
+        return editor
+
+    def updateEditorGeometry(
+        self,
+        editor: QWidget,
+        option: QStyleOptionViewItem,
+        index: QModelIndex,
+    ) -> None:  # type: ignore[override]
+        del index
+        editor.setGeometry(option.rect.adjusted(4, 5, -4, -5))
 
 
 class LayerPanel(QWidget):
@@ -37,6 +70,8 @@ class LayerPanel(QWidget):
 
         self.layer_list = QListWidget()
         self.layer_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.layer_list.setItemDelegate(LayerItemDelegate(self.layer_list))
+        self.layer_list.setSpacing(2)
         self.layer_list.itemChanged.connect(self._on_item_changed)
         self.layer_list.currentItemChanged.connect(self._on_current_item_changed)
 
@@ -82,6 +117,7 @@ class LayerPanel(QWidget):
                 | Qt.ItemFlag.ItemIsUserCheckable
             )
             item.setCheckState(Qt.CheckState.Checked if layer.visible else Qt.CheckState.Unchecked)
+            item.setSizeHint(QSize(0, 42))
             item.setToolTip(f"{layer.id}  x:{layer.x} y:{layer.y}  {layer.width}x{layer.height}")
             self.layer_list.addItem(item)
             if layer.id == selected_layer_id:
