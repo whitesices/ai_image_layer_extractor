@@ -60,7 +60,7 @@ class MockLLMProvider(BaseLLMProvider):
         output_format = "webp" if "webp" in text.lower() else "png"
         fit_mode = self._parse_fit_mode(text)
         target, layer_ids = self._parse_target(text, context)
-        task_type = "resize_layer" if target == "selected_layers" or layer_ids else "batch_export_layers"
+        task_type = "resize_layer" if target == "selected_layers" else "batch_export_layers"
 
         specs = [
             BatchOutputSpec(width=size[0], height=size[1], fit_mode=fit_mode, padding=padding, output_format=output_format)
@@ -242,8 +242,6 @@ class MockLLMProvider(BaseLLMProvider):
             return "selected_layers", context.selected_layer_ids[:]
         if "可见" in text:
             return "visible_layers", []
-        if "所有" in text or "全部" in text or "全都" in text:
-            return "all_layers", []
 
         for layer in context.available_layers:
             layer_id = str(layer.get("id", ""))
@@ -268,6 +266,8 @@ class MockLLMProvider(BaseLLMProvider):
             return "layer_name:icon", []
         if "logo" in lowered:
             return "layer_name:logo", []
+        if "所有" in text or "全部" in text or "全都" in text:
+            return "all_layers", []
         return "all_layers", []
 
     def _parse_target_names(self, text: str) -> list[str]:

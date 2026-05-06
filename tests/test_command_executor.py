@@ -176,3 +176,38 @@ def test_command_executor_exports_visible_layers_only() -> None:
         assert data["exported_layers"] == ["001"]
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_returns_not_implemented_for_reserved_task() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_not_implemented_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        plan = ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="remove_background",
+            requires_confirmation=False,
+            raw_user_text="移除背景",
+            tasks=[
+                EditTask(
+                    type="remove_background",
+                    target="all_layers",
+                    layer_ids=[],
+                    output_name=None,
+                    sizes=[],
+                    transparent_background=True,
+                    quality=QualityOptions(),
+                    params={},
+                )
+            ],
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is False
+        assert any("NotImplemented" in message for message in result.messages)
+        assert not result.errors
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)

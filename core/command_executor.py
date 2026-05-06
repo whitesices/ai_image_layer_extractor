@@ -70,9 +70,15 @@ class CommandExecutor:
             return self._export_for_ue_umg(task, dry_run=dry_run)
         if task.type == "future_psd_export":
             return self._future_psd_export(dry_run=dry_run)
+        return self._not_implemented(task)
+
+    def _not_implemented(self, task: EditTask) -> CommandExecutionResult:
         return CommandExecutionResult(
-            success=True,
-            warnings=[f"Task type '{task.type}' is not implemented in this MVP."],
+            success=False,
+            messages=[f"NotImplemented: task type '{task.type}' is recognized but has no local executor yet."],
+            warnings=[
+                "The command was parsed safely, but this task still needs a local pipeline implementation.",
+            ],
         )
 
     def _batch_export_layers(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
