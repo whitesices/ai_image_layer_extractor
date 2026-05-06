@@ -186,20 +186,31 @@ Open `AI > Settings` to choose:
 - `Mock`: offline rule-based parser, no API key required.
 - `OpenAI`: optional external parser that turns natural language into
   `ImageEditPlan` JSON.
-- `OpenAI Compatible`, `DeepSeek Compatible`, and `Local Server`: placeholders
-  for future compatible text-planning providers.
+- `OpenAI Compatible`, `DeepSeek Compatible`, and `Local Server`: optional
+  OpenAI-compatible text-planning providers that read a custom `LLM API base URL`.
 
 Optional detector/segmenter/matting settings include Mock, GroundingDINO, OCR,
 OpenCV GrabCut, rembg, SAM2, Simple, and BiRefNet. Missing optional dependencies
 fall back safely and do not prevent app startup.
 
-OpenAI support is optional. To use it in source mode, install the SDK yourself:
+OpenAI/OpenAI-compatible support is optional. To use it in source mode, install
+the SDK yourself:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install openai
 ```
 
 The Windows installer does not include any API key.
+
+For compatible providers, configure:
+
+- `LLM API base URL`, for example `https://api.example.com/v1`.
+- `LLM model`, using the provider-specific model name.
+- `LLM API key`, preferably through `OPENAI_API_KEY`.
+
+The base URL can also be provided through `LLM_API_BASE_URL` or `OPENAI_BASE_URL`.
+If the SDK, key, or required base URL is missing, AI Command falls back to the
+offline Mock provider.
 
 ## API Key Safety
 
@@ -209,6 +220,12 @@ Key lookup order:
 
 1. `OPENAI_API_KEY` environment variable.
 2. User settings file, only if the user explicitly chooses to save it.
+
+Compatible endpoint URL lookup order:
+
+1. `LLM_API_BASE_URL` environment variable.
+2. `OPENAI_BASE_URL` environment variable.
+3. User settings file.
 
 Settings are stored under:
 

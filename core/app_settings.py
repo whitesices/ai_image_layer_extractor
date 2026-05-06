@@ -37,6 +37,7 @@ def default_export_dir() -> Path:
 @dataclass(slots=True)
 class AppSettings:
     llm_provider: str = "mock"
+    llm_base_url: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_api_key: str = ""
     save_openai_api_key: bool = False
@@ -87,6 +88,13 @@ class SettingsManager:
         settings = settings or self.load()
         return settings.openai_api_key.strip()
 
+    def get_llm_base_url(self, settings: AppSettings | None = None) -> str:
+        env_url = os.environ.get("LLM_API_BASE_URL", "").strip() or os.environ.get("OPENAI_BASE_URL", "").strip()
+        if env_url:
+            return env_url
+        settings = settings or self.load()
+        return settings.llm_base_url.strip()
+
     def _from_dict(self, data: dict[str, Any]) -> AppSettings:
         settings = AppSettings()
         for field_name in asdict(settings).keys():
@@ -100,6 +108,7 @@ class SettingsManager:
             if isinstance(value, int | float | str) and str(value).isdigit()
         ]
         settings.default_padding = max(0, int(settings.default_padding))
+        settings.llm_base_url = str(settings.llm_base_url).strip()
         allowed_llm = {"mock", "openai", "openai_compatible", "deepseek_compatible", "local_server"}
         allowed_detector = {"mock", "grounding_dino", "ocr"}
         allowed_segmenter = {"opencv_grabcut", "rembg", "sam2"}

@@ -11,3 +11,8 @@ def get_configured_provider_name(settings: AppSettings | None = None) -> str:
 def get_openai_api_key(settings: AppSettings | None = None) -> str:
     manager = SettingsManager()
     return manager.get_openai_api_key(settings)
+
+
+def get_llm_base_url(settings: AppSettings | None = None) -> str:
+    manager = SettingsManager()
+    return manager.get_llm_base_url(settings)

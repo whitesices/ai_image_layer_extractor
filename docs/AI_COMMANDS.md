@@ -33,11 +33,26 @@ The Mock provider also recognizes extraction-oriented commands such as:
 These may require manual selection or optional detector backends if no bbox or
 detector result is available.
 
-## Optional OpenAI Provider
+## Optional OpenAI-Compatible Providers
 
-`OpenAIProvider` is optional. If the OpenAI SDK or API key is missing, the UI
-falls back to `MockLLMProvider`. API keys are never hardcoded and are never
-bundled into the installer.
+`OpenAIProvider` is optional. It is also used for OpenAI-compatible endpoints
+such as DeepSeek-compatible or local server providers.
+
+Settings:
+
+- `LLM provider`: `openai`, `openai_compatible`, `deepseek_compatible`, or `local_server`.
+- `LLM API base URL`: required for compatible providers, for example `https://api.example.com/v1`.
+- `LLM API key`: read from `OPENAI_API_KEY` first, then from settings only if the user chooses to save it.
+- `LLM model`: provider-specific model name.
+
+Environment override:
+
+- `LLM_API_BASE_URL`
+- `OPENAI_BASE_URL`
+
+If the OpenAI SDK, API key, or required base URL is missing, the UI falls back
+to `MockLLMProvider`. API keys are never hardcoded and are never bundled into
+the installer.
 
 ## Reserved Task Types
 

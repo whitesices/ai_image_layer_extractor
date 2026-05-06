@@ -46,6 +46,9 @@ class SettingsDialog(QDialog):
         self.matting_combo = QComboBox()
         self.matting_combo.addItems(["simple", "birefnet"])
 
+        self.base_url_edit = QLineEdit()
+        self.base_url_edit.setPlaceholderText("https://api.example.com/v1")
+
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key_edit.setPlaceholderText("Prefer OPENAI_API_KEY environment variable")
@@ -80,9 +83,10 @@ class SettingsDialog(QDialog):
         form.addRow("Detector backend", self.detector_combo)
         form.addRow("Segmenter backend", self.segmenter_combo)
         form.addRow("Matting refiner", self.matting_combo)
-        form.addRow("OpenAI API key", self.api_key_edit)
+        form.addRow("LLM API base URL", self.base_url_edit)
+        form.addRow("LLM API key", self.api_key_edit)
         form.addRow("", self.save_key_check)
-        form.addRow("OpenAI model", self.model_edit)
+        form.addRow("LLM model", self.model_edit)
         form.addRow("Default export dir", export_row)
         form.addRow("Default batch sizes", self.sizes_edit)
         form.addRow("Default fit mode", self.fit_mode_combo)
@@ -124,6 +128,7 @@ class SettingsDialog(QDialog):
         self.detector_combo.setCurrentText(self.settings.detector_backend)
         self.segmenter_combo.setCurrentText(self.settings.segmenter_backend)
         self.matting_combo.setCurrentText(self.settings.matting_refiner)
+        self.base_url_edit.setText(self.settings.llm_base_url)
         self.api_key_edit.setText(self.settings.openai_api_key)
         self.save_key_check.setChecked(self.settings.save_openai_api_key)
         self.model_edit.setText(self.settings.openai_model)
@@ -157,6 +162,7 @@ class SettingsDialog(QDialog):
         self.settings.detector_backend = self.detector_combo.currentText()
         self.settings.segmenter_backend = self.segmenter_combo.currentText()
         self.settings.matting_refiner = self.matting_combo.currentText()
+        self.settings.llm_base_url = self.base_url_edit.text().strip()
         self.settings.openai_api_key = self.api_key_edit.text().strip()
         self.settings.save_openai_api_key = self.save_key_check.isChecked()
         self.settings.openai_model = self.model_edit.text().strip() or "gpt-4o-mini"

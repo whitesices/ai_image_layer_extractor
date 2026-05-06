@@ -17,3 +17,10 @@ Record durable engineering decisions here.
 - Resolved named layer targets such as UI icons before broad words such as `全部`, so `把 UI 图标全部导出为 128x128 透明 PNG` targets icon layers instead of all layers.
 - `CommandExecutor` now returns an explicit `NotImplemented` result for recognized reserved task types that do not yet have a local executor.
 - Validation target: `python -B -m pytest`.
+
+## 2026-05-06 Custom LLM Base URL
+
+- Added `llm_base_url` to settings for OpenAI-compatible, DeepSeek-compatible, and local server providers.
+- `OpenAIProvider` now reads custom base URLs from settings, `LLM_API_BASE_URL`, or `OPENAI_BASE_URL`.
+- Compatible providers require a configured base URL and still fall back to Mock when SDK/key/URL is unavailable.
+- No new cloud service or dependency was added.

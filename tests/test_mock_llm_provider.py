@@ -148,3 +148,25 @@ def test_openai_provider_without_key_is_unavailable_without_crashing() -> None:
 
     assert provider.is_available() is False
     assert "key" in provider.status_message().lower()
+
+
+def test_compatible_provider_reads_custom_base_url() -> None:
+    provider = OpenAIProvider(
+        settings=AppSettings(
+            llm_provider="deepseek_compatible",
+            llm_base_url="https://api.example.com/v1",
+            openai_model="deepseek-v4-pro",
+        ),
+        api_key="secret",
+    )
+
+    assert provider.name == "DeepSeek Compatible"
+    assert provider.base_url == "https://api.example.com/v1"
+    assert provider.model == "deepseek-v4-pro"
+
+
+def test_compatible_provider_without_base_url_is_unavailable() -> None:
+    provider = OpenAIProvider(settings=AppSettings(llm_provider="deepseek_compatible"), api_key="secret")
+
+    assert provider.is_available() is False
+    assert "base url" in provider.status_message().lower()

@@ -168,17 +168,26 @@ AI 指令 `按 PSD 分层思路导出素材包` 会导出 PSD-compatible package
 
 - `Mock`：离线规则解析器，不需要 API Key。
 - `OpenAI`：可选外部解析器，用于把自然语言转换为 `ImageEditPlan` JSON。
-- `OpenAI Compatible`、`DeepSeek Compatible`、`Local Server`：未来兼容文本规划 Provider 的占位。
+- `OpenAI Compatible`、`DeepSeek Compatible`、`Local Server`：可选 OpenAI-compatible 文本规划 Provider，会读取自定义 `LLM API base URL`。
 
 可选 detector / segmenter / matting 设置包括 Mock、GroundingDINO、OCR、OpenCV GrabCut、rembg、SAM2、Simple 和 BiRefNet。缺少可选依赖时会安全 fallback，不影响应用启动。
 
-OpenAI 支持是可选的。源码模式下如需使用，请自行安装 SDK：
+OpenAI / OpenAI-compatible 支持是可选的。源码模式下如需使用，请自行安装 SDK：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install openai
 ```
 
 Windows 安装包不会包含任何 API Key。
+
+兼容 Provider 需要配置：
+
+- `LLM API base URL`，例如 `https://api.example.com/v1`。
+- `LLM model`，填写对应服务商的模型名。
+- `LLM API key`，优先建议使用 `OPENAI_API_KEY` 环境变量。
+
+Base URL 也可以通过 `LLM_API_BASE_URL` 或 `OPENAI_BASE_URL` 环境变量提供。
+如果 SDK、Key 或必需的 Base URL 缺失，AI Command 会回退到离线 Mock Provider。
 
 ## API Key 安全说明
 
@@ -188,6 +197,12 @@ API Key 不会硬编码，也不会被打进安装包。
 
 1. `OPENAI_API_KEY` 环境变量。
 2. 用户设置文件，且仅当用户明确选择保存时读取。
+
+兼容接口 URL 读取顺序：
+
+1. `LLM_API_BASE_URL` 环境变量。
+2. `OPENAI_BASE_URL` 环境变量。
+3. 用户设置文件。
 
 设置文件路径：
 
