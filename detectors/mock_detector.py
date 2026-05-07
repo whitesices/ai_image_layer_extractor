@@ -32,6 +32,8 @@ class MockDetector(BaseDetector):
             return [self._region(image, "weapon", prompt, 0.58, 0.35, 0.25, 0.18)]
         if any(token in prompt_lower for token in {"logo", "标志"}):
             return [self._region(image, "logo", prompt, 0.68, 0.08, 0.2, 0.16)]
+        if any(token in prompt_lower for token in {"icon", "图标", "ui icon"}):
+            return [self._region(image, "icon", prompt, 0.12, 0.08, 0.16, 0.16)]
         if any(token in prompt_lower for token in {"text", "文字", "文本"}):
             return [self._region(image, "text", prompt, 0.1, 0.75, 0.8, 0.12)]
         if any(token in prompt_lower for token in {"prop", "道具"}):
@@ -55,4 +57,3 @@ class MockDetector(BaseDetector):
         x = max(0, min(image.width - width, x))
         y = max(0, min(image.height - height, y))
         return DetectionResult(label, (x, y, width, height), 0.25, self.name, prompt)
-

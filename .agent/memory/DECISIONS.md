@@ -24,3 +24,19 @@ Record durable engineering decisions here.
 - `OpenAIProvider` now reads custom base URLs from settings, `LLM_API_BASE_URL`, or `OPENAI_BASE_URL`.
 - Compatible providers require a configured base URL and still fall back to Mock when SDK/key/URL is unavailable.
 - No new cloud service or dependency was added.
+
+## 2026-05-07 LLM Provider Factory Refactor
+
+- Moved LLM provider selection, availability fallback, and status text composition into `llm/provider_factory.py`.
+- `AICommandPanel` now depends on the provider factory instead of concrete Mock/OpenAI provider classes.
+- Behavior is unchanged: unavailable compatible providers still fall back to offline Mock.
+- Validation target: `python -B -m pytest`.
+
+## 2026-05-07 Smart Slice Pipeline Bridge
+
+- `MockLLMProvider` now recognizes smart slice commands that combine local extraction with batch export, for example `把图中所有人物图片元素全部输出 512x512`.
+- `CommandExecutor` can execute `extract_target`, `extract_multiple_targets`, `detect_text_regions`, and `create_background_layer` through local pipelines.
+- The implementation remains offline-first: Mock detector and OpenCV/local pipelines are the baseline, while SAM2/GroundingDINO/OCR remain optional future backends.
+- LLM output still stops at structured `ImageEditPlan`; pixel changes are performed by local pipeline code only.
+- Added tests for smart command parsing, extraction execution, text-region extraction, background layer creation, and chained extraction-to-export.
+- Validation target: `python -B -m pytest`.

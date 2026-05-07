@@ -30,6 +30,8 @@ class MockLLMProvider(BaseLLMProvider):
             return self._parse_ue_export(text, context)
         if "psd" in lowered or "分层思路" in text:
             return self._single_task_plan(text, "future_psd_export", "psd_compatible_export", "all_layers")
+        if self._looks_like_smart_slice(text):
+            return self._parse_smart_slice(text, context)
         if "文字" in text or "文本" in text:
             return self._single_task_plan(
                 text,
@@ -49,10 +51,72 @@ class MockLLMProvider(BaseLLMProvider):
             return self._parse_extraction(text)
         if "背景" in text and ("导出" in text or "背景图" in text or "背景层" in text):
             return self._parse_background(text)
-        if "导出" in text or "尺寸" in text or "透明" in text or "图标" in text:
+        if "导出" in text or "输出" in text or "尺寸" in text or "透明" in text or "图标" in text:
             return self._parse_export(text, context)
 
         return self._clarification_plan(text, "暂时只能解析批量导出、目标提取、边缘优化、UE/PSD 导出和图层重命名指令。")
+
+    def _looks_like_smart_slice(self, text: str) -> bool:
+        action_tokens = {"切图", "切割", "分图层", "分层", "拆分", "智能识别", "识别图片", "图片元素", "图中"}
+        output_tokens = {"导出", "输出", "透明", "尺寸", "分辨率"}
+        target_tokens = {"人物", "角色", "武器", "道具", "图标", "logo", "Logo", "文字", "背景"}
+        return (
+            any(token in text for token in action_tokens)
+            and (any(token in text for token in output_tokens) or any(token in text for token in target_tokens))
+        )
+
+    def _parse_smart_slice(self, text: str, context: CommandContext) -> ImageEditPlan:
+        target_names = self._parse_target_names(text) or ["person", "weapon", "prop", "logo", "text"]
+        if "背景" in text and "background" not in target_names:
+            target_names.append("background")
+
+        extraction_task = EditTask(
+            type="extract_multiple_targets" if len(target_names) > 1 else "extract_target",
+            target="multiple_targets" if len(target_names) > 1 else target_names[0],
+            layer_ids=[],
+            output_name=None if len(target_names) > 1 else target_names[0],
+            sizes=[],
+            transparent_background=True,
+            quality=QualityOptions(),
+            params={
+                "target_names": target_names,
+                "target_prompt": target_names[0] if len(target_names) == 1 else None,
+                "risk_warning": "离线 Mock 只能生成粗略检测区域；更精细切图需要手动框选或可选检测/分割后端。",
+            },
+        )
+
+        tasks = [extraction_task]
+        if "导出" in text or "输出" in text or self._parse_sizes(text):
+            sizes = self._parse_sizes(text)
+            export_task = EditTask(
+                type="batch_export_layers",
+                target="all_layers",
+                layer_ids=[],
+                output_name=None,
+                sizes=[
+                    BatchOutputSpec(
+                        width=width,
+                        height=height,
+                        fit_mode=self._parse_fit_mode(text),
+                        padding=self._parse_padding(text),
+                        output_format="webp" if "webp" in text.lower() else "png",
+                    )
+                    for width, height in sizes
+                ],
+                transparent_background=True,
+                quality=QualityOptions(remove_halo=True),
+                params={"scope": "all_layers", "after_extraction": True},
+            )
+            tasks.append(export_task)
+
+        return ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="smart_slice",
+            requires_confirmation=True,
+            tasks=tasks,
+            raw_user_text=text,
+        )
 
     def _parse_export(self, text: str, context: CommandContext) -> ImageEditPlan:
         sizes = self._parse_sizes(text) or [(512, 512)]
@@ -277,6 +341,8 @@ class MockLLMProvider(BaseLLMProvider):
             ("角色", "character"),
             ("武器", "weapon"),
             ("道具", "prop"),
+            ("图标", "icon"),
+            ("icon", "icon"),
             ("logo", "logo"),
             ("Logo", "logo"),
             ("文字", "text"),

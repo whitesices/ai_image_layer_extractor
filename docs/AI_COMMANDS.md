@@ -33,6 +33,32 @@ The Mock provider also recognizes extraction-oriented commands such as:
 These may require manual selection or optional detector backends if no bbox or
 detector result is available.
 
+## Smart Slice Commands
+
+The current Pro-oriented phase adds a safe local bridge from natural language
+to the extraction pipeline. The Mock provider can now produce a multi-step
+plan: first extract target layers with local detectors/segmenters, then batch
+export the layers at the requested size or format.
+
+Examples:
+
+| Command | Parsed plan | Local behavior |
+| --- | --- | --- |
+| `把图中所有人物图片元素全部输出 512x512` | `extract_target` -> `batch_export_layers` | Creates a `person` layer through the local target extraction pipeline, then exports 512x512 PNG. |
+| `智能识别图片并分图层导出 256x256 webp` | `extract_multiple_targets` -> `batch_export_layers` | Uses the offline mock detector fallback for person, weapon, prop, logo, and text, then exports WebP. |
+| `把人物、武器、背景分别导出` | `extract_multiple_targets` | Creates foreground target layers and a background layer if enough local mask context exists. |
+| `导出背景图` | `create_background_layer` | Creates a background layer by inverting existing foreground masks. |
+
+Important limits:
+
+- Mock detection is deterministic and coarse. It exists so the app remains
+  usable offline and testable without model weights.
+- Production-quality natural-language object extraction should later use an
+  optional detector backend such as GroundingDINO plus an optional segmenter
+  such as SAM2.
+- The LLM provider still only returns an `ImageEditPlan`. Pixel work is always
+  executed by local Python pipelines through `CommandExecutor`.
+
 ## Optional OpenAI-Compatible Providers
 
 `OpenAIProvider` is optional. It is also used for OpenAI-compatible endpoints

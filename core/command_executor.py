@@ -10,6 +10,7 @@ from .layer import LayerItem
 from .mask_utils import clean_mask, mask_to_bbox
 from .project import ProjectData
 from .quality_pipeline import QualityPipeline
+from .extraction_plan import ExtractionRequest
 
 
 @dataclass(slots=True)
@@ -62,6 +63,14 @@ class CommandExecutor:
             return self._resize_layer(task, dry_run=dry_run)
         if task.type == "rename_layer":
             return self._rename_layer(task, dry_run=dry_run)
+        if task.type in {"extract_target", "extract_object"}:
+            return self._extract_target(task, dry_run=dry_run)
+        if task.type in {"extract_multiple_targets", "extract_all_objects"}:
+            return self._extract_multiple_targets(task, dry_run=dry_run)
+        if task.type == "detect_text_regions":
+            return self._detect_text_regions(task, dry_run=dry_run)
+        if task.type == "create_background_layer":
+            return self._create_background_layer(task, dry_run=dry_run)
         if task.type == "refine_mask":
             return self._refine_mask(task, dry_run=dry_run)
         if task.type == "export_project":
@@ -149,6 +158,124 @@ class CommandExecutor:
             success=True,
             messages=[f"Renamed layer(s) {', '.join(renamed)} to '{new_name}'."],
         )
+
+    def _extract_target(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
+        if self.project.image is None:
+            return CommandExecutionResult(success=False, errors=["No source image is loaded."])
+
+        prompt = self._target_prompt(task)
+        bbox = self._bbox_param(task)
+        selected_layer_id = task.layer_ids[0] if task.layer_ids else None
+        output_name = task.output_name or prompt
+        if dry_run:
+            detail = f"target='{prompt}'"
+            if bbox is not None:
+                detail += f", bbox={bbox}"
+            elif selected_layer_id:
+                detail += f", selected_layer_id={selected_layer_id}"
+            else:
+                detail += ", detector/manual-selection fallback"
+            return CommandExecutionResult(success=True, messages=[f"Dry run: would extract {detail}."])
+
+        from pipeline.target_extraction_pipeline import TargetExtractionPipeline
+
+        extraction = TargetExtractionPipeline().extract(
+            self.project,
+            ExtractionRequest(
+                target_prompt=prompt,
+                bbox=bbox,
+                selected_layer_id=selected_layer_id,
+                output_name=output_name,
+                metadata=dict(task.params),
+            ),
+        )
+        return self._extraction_to_command_result(extraction, prompt)
+
+    def _extract_multiple_targets(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
+        if self.project.image is None:
+            return CommandExecutionResult(success=False, errors=["No source image is loaded."])
+
+        target_names = self._target_names(task)
+        if not target_names:
+            return CommandExecutionResult(
+                success=False,
+                errors=["extract_multiple_targets requires params.target_names or a target prompt."],
+            )
+        if dry_run:
+            return CommandExecutionResult(
+                success=True,
+                messages=[f"Dry run: would extract targets: {', '.join(target_names)}."],
+            )
+
+        from pipeline.target_extraction_pipeline import TargetExtractionPipeline
+
+        pipeline = TargetExtractionPipeline()
+        result = CommandExecutionResult(success=True)
+        for target_name in target_names:
+            if target_name.lower() == "background":
+                converted = self._create_background_layer(
+                    EditTask(
+                        type="create_background_layer",
+                        target="background",
+                        layer_ids=[],
+                        output_name="background",
+                        sizes=[],
+                        transparent_background=False,
+                        quality=task.quality,
+                        params=task.params,
+                    ),
+                    dry_run=False,
+                )
+                result.messages.extend(converted.messages)
+                result.warnings.extend(converted.warnings)
+                result.errors.extend(converted.errors)
+                if not converted.success:
+                    result.success = False
+                continue
+            extraction = pipeline.extract(
+                self.project,
+                ExtractionRequest(
+                    target_prompt=target_name,
+                    output_name=target_name,
+                    metadata=dict(task.params),
+                ),
+            )
+            converted = self._extraction_to_command_result(extraction, target_name)
+            result.messages.extend(converted.messages)
+            result.warnings.extend(converted.warnings)
+            result.errors.extend(converted.errors)
+            result.generated_files.extend(converted.generated_files)
+            if not converted.success:
+                result.success = False
+        return result
+
+    def _detect_text_regions(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
+        text_task = EditTask(
+            type="extract_target",
+            target="text",
+            layer_ids=task.layer_ids,
+            output_name=task.output_name or "text",
+            sizes=task.sizes,
+            transparent_background=task.transparent_background,
+            quality=task.quality,
+            params={**task.params, "target_prompt": task.params.get("target_prompt", "text")},
+        )
+        return self._extract_target(text_task, dry_run=dry_run)
+
+    def _create_background_layer(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
+        if self.project.image is None:
+            return CommandExecutionResult(success=False, errors=["No source image is loaded."])
+        name = task.output_name or task.params.get("name") or "background"
+        if dry_run:
+            return CommandExecutionResult(
+                success=True,
+                messages=[f"Dry run: would create background layer '{name}' by inverting existing foreground masks."],
+            )
+
+        from pipeline.background_pipeline import BackgroundPipeline
+
+        extraction = BackgroundPipeline().create_background_layer(self.project, str(name))
+        return self._extraction_to_command_result(extraction, str(name))
 
     def _refine_mask(self, task: EditTask, dry_run: bool) -> CommandExecutionResult:
         layers = self._resolve_layers(task)
@@ -242,6 +369,50 @@ class CommandExecutor:
             generated_files=[str(path) for path in export_result.generated_files],
             warnings=export_result.warnings,
         )
+
+    def _extraction_to_command_result(self, extraction, target_prompt: str) -> CommandExecutionResult:
+        messages = list(extraction.messages)
+        warnings = list(extraction.warnings)
+        errors = list(extraction.errors)
+        if extraction.user_action_required:
+            warnings.append(f"User action required for '{target_prompt}': manually box-select the target or enable a detector backend.")
+        if extraction.layer is not None:
+            messages.append(
+                f"Created layer {extraction.layer.id} '{extraction.layer.name}' at "
+                f"x={extraction.layer.x}, y={extraction.layer.y}, "
+                f"w={extraction.layer.width}, h={extraction.layer.height}."
+            )
+        return CommandExecutionResult(
+            success=extraction.success,
+            messages=messages,
+            warnings=warnings,
+            errors=errors,
+        )
+
+    def _target_prompt(self, task: EditTask) -> str:
+        prompt = str(task.params.get("target_prompt") or task.output_name or task.target or "object").strip()
+        return prompt or "object"
+
+    def _target_names(self, task: EditTask) -> list[str]:
+        values = task.params.get("target_names")
+        if isinstance(values, list):
+            return [str(value).strip() for value in values if str(value).strip()]
+        if isinstance(values, str):
+            return [part.strip() for part in values.replace(";", ",").split(",") if part.strip()]
+        prompt = self._target_prompt(task)
+        return [] if prompt == "multiple_targets" else [prompt]
+
+    def _bbox_param(self, task: EditTask) -> tuple[int, int, int, int] | None:
+        value = task.params.get("bbox")
+        if not isinstance(value, (list, tuple)) or len(value) != 4:
+            return None
+        try:
+            x, y, width, height = (int(part) for part in value)
+        except (TypeError, ValueError):
+            return None
+        if width <= 0 or height <= 0:
+            return None
+        return (x, y, width, height)
 
     def _resolve_layers(self, task: EditTask) -> list[LayerItem]:
         if task.layer_ids:

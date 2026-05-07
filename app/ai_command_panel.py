@@ -19,8 +19,7 @@ from core.command_executor import CommandExecutionResult, CommandExecutor
 from core.edit_plan import CommandContext, ImageEditPlan, summarize_edit_plan
 from core.project import ProjectData
 from llm.base_provider import BaseLLMProvider
-from llm.mock_provider import MockLLMProvider
-from llm.openai_provider import OpenAIProvider
+from llm.provider_factory import create_available_llm_provider, provider_status_text
 
 
 class _ParseWorker(QObject):
@@ -125,11 +124,7 @@ class AICommandPanel(QWidget):
         self.refresh_status()
 
     def refresh_status(self) -> None:
-        provider = self._create_provider()
-        fallback = ""
-        if isinstance(provider, OpenAIProvider) and not provider.is_available():
-            fallback = " (fallback: Mock)"
-        self.status_label.setText(f"Provider: {provider.name}{fallback} | {provider.status_message()}")
+        self.status_label.setText(provider_status_text(self.settings))
 
     def parse_command(self) -> None:
         text = self.input_edit.toPlainText().strip()
@@ -137,8 +132,6 @@ class AICommandPanel(QWidget):
             self.preview_edit.setPlainText("Please enter a command.")
             return
         provider = self._create_provider()
-        if isinstance(provider, OpenAIProvider) and not provider.is_available():
-            provider = MockLLMProvider()
         self._start_worker(_ParseWorker(provider, text, self._build_context()), self._on_parse_finished)
 
     def dry_run(self) -> None:
@@ -233,9 +226,7 @@ class AICommandPanel(QWidget):
         self.execute_button.setEnabled(not busy)
 
     def _create_provider(self) -> BaseLLMProvider:
-        if self.settings.llm_provider in {"openai", "openai_compatible", "deepseek_compatible", "local_server"}:
-            return OpenAIProvider(self.settings)
-        return MockLLMProvider()
+        return create_available_llm_provider(self.settings)
 
     def _build_context(self) -> CommandContext:
         width, height = self.project.canvas_size

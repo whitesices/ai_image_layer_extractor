@@ -211,3 +211,142 @@ def test_command_executor_returns_not_implemented_for_reserved_task() -> None:
         assert not result.errors
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_extract_target_creates_layer() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_extract_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        project.layers.clear()
+        plan = ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="extract",
+            requires_confirmation=False,
+            raw_user_text="提取人物",
+            tasks=[
+                EditTask(
+                    type="extract_target",
+                    target="person",
+                    layer_ids=[],
+                    output_name="person",
+                    sizes=[],
+                    transparent_background=True,
+                    quality=QualityOptions(),
+                    params={"target_prompt": "person"},
+                )
+            ],
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        assert len(project.layers) == 1
+        assert project.layers[0].name == "person"
+        assert any("Created layer" in message for message in result.messages)
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_extract_multiple_targets_and_background() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_extract_multi_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        project.layers.clear()
+        plan = ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="smart_slice",
+            requires_confirmation=False,
+            raw_user_text="把人物、武器、背景分别导出",
+            tasks=[
+                EditTask(
+                    type="extract_multiple_targets",
+                    target="multiple_targets",
+                    layer_ids=[],
+                    output_name=None,
+                    sizes=[],
+                    transparent_background=True,
+                    quality=QualityOptions(),
+                    params={"target_names": ["person", "weapon", "background"]},
+                )
+            ],
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        assert [layer.name for layer in project.layers] == ["person", "weapon", "background"]
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_detect_text_regions_creates_text_layer() -> None:
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_text_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        project.layers.clear()
+        plan = ImageEditPlan(
+            version="1.0",
+            language="zh-CN",
+            intent="detect_text",
+            requires_confirmation=False,
+            raw_user_text="把文字区域识别出来",
+            tasks=[
+                EditTask(
+                    type="detect_text_regions",
+                    target="text_regions",
+                    layer_ids=[],
+                    output_name="text",
+                    sizes=[],
+                    transparent_background=True,
+                    quality=QualityOptions(),
+                    params={"target_prompt": "text"},
+                )
+            ],
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        assert len(project.layers) == 1
+        assert project.layers[0].name == "text"
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_command_executor_smart_slice_plan_extracts_then_exports() -> None:
+    from llm.mock_provider import MockLLMProvider
+    from core.edit_plan import CommandContext
+
+    tmp_root = Path(__file__).resolve().parent / "_tmp"
+    tmp_path = tmp_root / f"executor_smart_slice_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        project = _make_project(tmp_path)
+        project.layers.clear()
+        plan = MockLLMProvider().parse_command(
+            "把图中所有人物图片元素全部输出 512x512",
+            CommandContext(
+                source_image_loaded=True,
+                canvas_width=32,
+                canvas_height=24,
+                layer_count=0,
+                selected_layer_ids=[],
+                available_layers=[],
+            ),
+        )
+
+        result = CommandExecutor(project, tmp_path / "Export").execute(plan)
+
+        assert result.success is True
+        assert [layer.name for layer in project.layers] == ["person"]
+        assert (tmp_path / "Export" / "batch_report.json").exists()
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)

@@ -143,6 +143,25 @@ def test_mock_llm_provider_parses_text_detection() -> None:
     assert task.type == "detect_text_regions"
 
 
+def test_mock_llm_provider_parses_smart_person_output_as_extract_then_export() -> None:
+    plan = MockLLMProvider().parse_command("把图中所有人物图片元素全部输出 512x512", _context())
+
+    assert plan.intent == "smart_slice"
+    assert [task.type for task in plan.tasks] == ["extract_target", "batch_export_layers"]
+    assert plan.tasks[0].target == "person"
+    assert plan.tasks[1].sizes[0].width == 512
+
+
+def test_mock_llm_provider_parses_smart_layer_split_with_webp_resolution() -> None:
+    plan = MockLLMProvider().parse_command("智能识别图片并分图层导出 256x256 webp", _context())
+
+    assert plan.intent == "smart_slice"
+    assert plan.tasks[0].type == "extract_multiple_targets"
+    assert plan.tasks[0].params["target_names"] == ["person", "weapon", "prop", "logo", "text"]
+    assert plan.tasks[1].sizes[0].width == 256
+    assert plan.tasks[1].sizes[0].output_format == "webp"
+
+
 def test_openai_provider_without_key_is_unavailable_without_crashing() -> None:
     provider = OpenAIProvider(settings=AppSettings(llm_provider="openai"), api_key="")
 
